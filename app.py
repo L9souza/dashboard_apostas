@@ -36,14 +36,14 @@ if uploaded_file is not None:
 
     st.markdown("---")
 
-    # Gráfico 1: Lucro por Data (Estilizado)
+    # Gráfico 1: Lucro por Data (Estilo normal)
     lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
-    
+
     # Criando o gráfico com Plotly
     fig_lucro = px.line(lucro_por_data, x='Data', y='Lucro/Prejuízo (R$)', markers=True,
-                        title="Lucro/Prejuízo por Data", line_shape='linear', template='plotly_dark')
+                        title="Lucro/Prejuízo por Data", line_shape='linear')
 
-    # Melhorando a aparência do gráfico
+    # Estilo do gráfico
     fig_lucro.update_layout(
         xaxis_title='Data',
         yaxis_title='Lucro/Prejuízo (R$)',
