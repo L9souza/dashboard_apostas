@@ -26,8 +26,6 @@ for raiz, diretorios, arquivos in os.walk(diretorio_base):
 # Se o arquivo for encontrado, carregamos o CSV
 if caminho_arquivo:
     df = pd.read_csv(caminho_arquivo, delimiter=';')  # Use o caminho encontrado aqui
-    # Remover a linha abaixo para não mostrar mais o caminho
-    # st.write(f"Arquivo encontrado e carregado: {caminho_arquivo}")
 else:
     st.error(f"Arquivo '{nome_arquivo}' não encontrado a partir de {diretorio_base}.")
     df = None
@@ -49,7 +47,8 @@ if df is not None:
             .astype(float)
         )
 
-    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+    # Ajustando a data para o formato brasileiro (sem hora)
+    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%Y')
 
     # Estatísticas
     total_apostado = df['Valor Apostado (R$)'].sum()
@@ -70,16 +69,8 @@ if df is not None:
                         title="Lucro/Prejuízo por Data")
     st.plotly_chart(fig_lucro, use_container_width=True)
 
-    # Gráfico 2: Distribuição por Casa de Apostas
-    casa_apostas = df['Casa de Apostas'].value_counts().reset_index()
-    casa_apostas.columns = ['Casa de Apostas', 'Quantidade']
-
-    fig_casa = px.pie(casa_apostas, names='Casa de Apostas', values='Quantidade',
-                      title="Distribuição por Casa de Apostas")
-    st.plotly_chart(fig_casa, use_container_width=True)
-
     st.markdown("---")
 
-    # Exibir a tabela final
+    # Exibir a tabela final (sem a hora na data)
     st.subheader("📋 Dados Completos")
     st.dataframe(df, use_container_width=True)
