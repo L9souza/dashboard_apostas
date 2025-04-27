@@ -44,6 +44,7 @@ if caminho_arquivo:
             )
 
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+    df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
     # --- Calcular Lucro/Prejuízo se não existir ---
     if 'Lucro/Prejuízo (R$)' not in df.columns and 'Ganho (R$)' in df.columns and 'Valor Apostado (R$)' in df.columns:
@@ -55,8 +56,6 @@ if caminho_arquivo:
         'Ganho (R$)': 'sum',
         'Lucro/Prejuízo (R$)': 'sum'
     }).reset_index()
-
-    df_consolidado['Data'] = df_consolidado['Data'].dt.strftime('%d/%m/%Y')
 
     # --- Métricas Principais ---
     qtd_apostas = len(df)
@@ -70,56 +69,28 @@ if caminho_arquivo:
 
     st.markdown("---")
 
-    # --- Escolha de gráfico ---
-    opcao_grafico = st.sidebar.selectbox(
-        "Escolha o gráfico para exibir:",
-        ("Lucro/Prejuízo Consolidado", "Evolução do Lucro Acumulado")
+    # --- Gráfico de Lucro/Prejuízo Consolidado ---
+    fig_lucro = go.Figure()
+    fig_lucro.add_trace(go.Bar(
+        x=df_consolidado['Data'],
+        y=df_consolidado['Lucro/Prejuízo (R$)'],
+        marker_color=['green' if x > 0 else 'red' for x in df_consolidado['Lucro/Prejuízo (R$)']],
+        text=[f"R$ {x:,.2f}" for x in df_consolidado['Lucro/Prejuízo (R$)']],
+        textposition='inside',
+        width=0.6
+    ))
+
+    fig_lucro.update_layout(
+        title="Lucro/Prejuízo Consolidado por Data",
+        xaxis_title='Data',
+        yaxis_title='Lucro/Prejuízo (R$)',
+        height=600,
+        plot_bgcolor='rgba(0,0,0,0)',
+        xaxis_tickangle=-45,
+        hovermode="x unified"
     )
 
-    if opcao_grafico == "Lucro/Prejuízo Consolidado":
-        fig_lucro = go.Figure()
-        fig_lucro.add_trace(go.Bar(
-            x=df_consolidado['Data'],
-            y=df_consolidado['Lucro/Prejuízo (R$)'],
-            marker_color=['green' if x > 0 else 'red' for x in df_consolidado['Lucro/Prejuízo (R$)']],
-            text=[f"R$ {x:,.2f}" for x in df_consolidado['Lucro/Prejuízo (R$)']],
-            textposition='inside',
-            width=0.6
-        ))
-
-        fig_lucro.update_layout(
-            title="Lucro/Prejuízo Consolidado por Data",
-            xaxis_title='Data',
-            yaxis_title='Lucro/Prejuízo (R$)',
-            height=600,
-            plot_bgcolor='rgba(0,0,0,0)',
-            xaxis_tickangle=-45,
-            hovermode="x unified"
-        )
-
-        st.plotly_chart(fig_lucro, use_container_width=True)
-
-    elif opcao_grafico == "Evolução do Lucro Acumulado":
-        df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
-
-        fig_acumulado = go.Figure()
-        fig_acumulado.add_trace(go.Scatter(
-            x=df_consolidado['Data'],
-            y=df_consolidado['Lucro Acumulado'],
-            mode='lines+markers',
-            line=dict(color='gold', width=3),
-            marker=dict(size=10)
-        ))
-
-        fig_acumulado.update_layout(
-            title="Evolução do Lucro Acumulado",
-            xaxis_title='Data',
-            yaxis_title='Lucro Acumulado (R$)',
-            height=500,
-            showlegend=False
-        )
-
-        st.plotly_chart(fig_acumulado, use_container_width=True)
+    st.plotly_chart(fig_lucro, use_container_width=True)
 
     st.markdown("---")
 
