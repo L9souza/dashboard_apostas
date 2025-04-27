@@ -110,7 +110,8 @@ if caminho_arquivo:
 
     # Formatação condicional para Lucro e Prejuízo
     def color_lucro(val):
-        if isinstance(val, (int, float)):  # Certificar que é um valor numérico
+        # Verifica se o valor é numérico e aplica a cor
+        if isinstance(val, (int, float)):
             if val > 0:
                 return 'color: green;'  # Lucro em verde
             elif val < 0:
