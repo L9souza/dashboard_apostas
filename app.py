@@ -80,16 +80,18 @@ if caminho_arquivo:
     st.markdown("---")
 
     # Formatação condicional da tabela (Lucro: verde, Prejuízo: vermelho)
-    def color_lucro(val):
-        if isinstance(val, str) and val.startswith('R$ '):
-            val = float(val.replace('R$ ', '').replace('.', '').replace(',', '.'))
-        if isinstance(val, (int, float)):
-            if val > 0:
-                return 'background-color: #4CAF50; color: white;'  # Verde
-            elif val < 0:
-                return 'background-color: #F44336; color: white;'  # Vermelho
-        return ''
+  def color_lucro(val):
+    if isinstance(val, str) and val.startswith('R$ '):
+        val = float(val.replace('R$ ', '').replace('.', '').replace(',', '.'))
+    if isinstance(val, (int, float)):
+        if val > 0:
+            return 'color: green;'  # Apenas texto verde
+        elif val < 0:
+            return 'color: red;'    # Apenas texto vermelho
+    return ''
 
+# Aplicação (restante do código permanece igual):
+styled_df = df_display.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
     # Formata os valores para exibição (R$)
     df_display = df.copy()
     for col in ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)']:
