@@ -79,9 +79,9 @@ if caminho_arquivo:
     st.plotly_chart(fig_lucro, use_container_width=True)
     st.markdown("---")
 
-    # Formatação condicional para colorir o texto (não o fundo)
+    # Formatação condicional para colorir **somente o texto**.
     def color_lucro(val):
-        if isinstance(val, (int, float)):
+        if isinstance(val, (int, float)):  # Verifica se o valor é numérico
             if val > 0:
                 return 'color: green;'  # Texto verde para lucro
             elif val < 0:
