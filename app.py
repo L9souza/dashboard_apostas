@@ -85,10 +85,10 @@ if caminho_arquivo:
             val = float(val.replace('R$ ', '').replace('.', '').replace(',', '.'))
         if isinstance(val, (int, float)):
             if val > 0:
-                return 'color: green;'  # Apenas texto verde
+                return 'background-color: green; color: white;'  # Verde de fundo com texto branco
             elif val < 0:
-                return 'color: red;'    # Apenas texto vermelho
-        return ''
+                return 'background-color: red; color: white;'    # Vermelho de fundo com texto branco
+        return ''  # Quando o valor for 0 ou não for numérico, não exibir cor
 
     # Formata os valores para exibição (R$)
     df_display = df.copy()
