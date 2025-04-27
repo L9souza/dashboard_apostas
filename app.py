@@ -20,28 +20,27 @@ if uploaded_file is not None:
     # Remover espaços extras dos nomes das colunas
     df.columns = df.columns.str.strip()
     
-    # Cálculo do lucro/prejuízo (subtraindo o valor apostado do retorno previsto)
+    # Cálculo do lucro/prejuízo
     try:
         df['Lucro/Prejuízo (R$)'] = df['Retorno Previsto (R$)'] - df['Valor Apostado (R$)']
     except KeyError as e:
-        st.write(f"Erro: A coluna {e} não foi encontrada. Verifique os nomes das colunas.")
+        st.error(f"Erro: A coluna {e} não foi encontrada. Verifique os nomes das colunas.")
     
     # Exibir os dados
     st.write("**Tabela de Apostas:**")
-    st.write(df)
+    st.dataframe(df, use_container_width=True)
     
     # Função para colorir as células baseado no lucro/prejuízo
     def colorize(val):
         color = 'green' if val > 0 else 'red'
         return f'color: {color}'
     
-    # Aplicando a cor no dataframe
+    # Aplicar a estilização
     styled_df = df.style.applymap(colorize, subset=['Lucro/Prejuízo (R$)'])
     
-    # Exibir a tabela estilizada com lucros e prejuízos coloridos
+    # Exibir a tabela estilizada corretamente
     st.write("**Tabela com Lucro/Prejuízo colorido:**")
-    st.write(styled_df)
+    st.dataframe(styled_df, use_container_width=True)
 
 else:
-    st.write("Por favor, faça o upload de um arquivo CSV.")
-
+    st.info("Por favor, faça o upload de um arquivo CSV.")
