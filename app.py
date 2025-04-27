@@ -1,6 +1,12 @@
 import streamlit as st
 import pandas as pd
 
+# Configurar página
+st.set_page_config(page_title="Dashboard de Apostas", page_icon="📈", layout="wide")
+
+# Título
+st.title('📈 Dashboard de Apostas Esportivas do LC')
+
 # Adiciona a opção para o usuário fazer upload do arquivo CSV
 uploaded_file = st.file_uploader("Escolha um arquivo CSV", type="csv")
 
