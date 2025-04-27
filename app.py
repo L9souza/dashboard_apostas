@@ -1,5 +1,31 @@
-# Se o DataFrame foi carregado com sucesso
-if df is not None:
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import os
+
+# Configurações da página
+st.set_page_config(page_title="Dashboard de Apostas", page_icon="🎯", layout="wide")
+
+st.title('🎯 Dashboard de Apostas Esportivas')
+
+# Nome do arquivo que queremos encontrar
+nome_arquivo = 'apostas_atualizadas.csv'
+
+# Começamos procurando a partir do diretório onde o script está sendo executado
+diretorio_base = os.getcwd()
+
+# Variável para armazenar o caminho do arquivo encontrado
+caminho_arquivo = None
+
+# Procura o arquivo no diretório atual e em todas as subpastas
+for raiz, diretorios, arquivos in os.walk(diretorio_base):
+    if nome_arquivo in arquivos:
+        caminho_arquivo = os.path.join(raiz, nome_arquivo)
+        break
+
+# Se o arquivo for encontrado, carregamos o CSV
+if caminho_arquivo:
+    df = pd.read_csv(caminho_arquivo, delimiter=';')  # Use o caminho encontrado aqui
     df.columns = df.columns.str.strip()
 
     # Limpeza dos dados
@@ -40,3 +66,6 @@ if df is not None:
     # Exibir a tabela final com o índice começando de 1
     st.subheader("📋 Dados Completos")
     st.dataframe(df, use_container_width=True)
+
+else:
+    st.error(f"Arquivo '{nome_arquivo}' não encontrado a partir de {diretorio_base}.")
