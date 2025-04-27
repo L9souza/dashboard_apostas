@@ -86,7 +86,7 @@ if caminho_arquivo:
         yaxis_title='Lucro/Prejuízo (R$)',
         height=600,
         plot_bgcolor='rgba(0,0,0,0)',
-        xaxis_tickangle=-45,
+        xaxis_tickangle=0,
         hovermode="x unified"
     )
 
