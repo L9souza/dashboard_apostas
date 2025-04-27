@@ -110,7 +110,7 @@ if caminho_arquivo:
 
     # Formatação condicional para Lucro e Prejuízo
     def color_lucro(val):
-        # Verifica se o valor é numérico e aplica a cor
+        # Verifica se o valor é numérico e aplica a cor de fundo (verde ou vermelho)
         if isinstance(val, (int, float)):
             if val > 0:
                 return 'background-color: green; color: white;'  # Lucro em verde com texto branco
@@ -118,7 +118,7 @@ if caminho_arquivo:
                 return 'background-color: red; color: white;'  # Prejuízo em vermelho com texto branco
         return ''  # Quando o valor for 0 ou não for numérico, não exibir cor
 
-    # Aplicando formatação condicional
+    # Aplicando formatação condicional com a função color_lucro
     df_style = df.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
 
     # Exibir a tabela final com o índice começando de 1
