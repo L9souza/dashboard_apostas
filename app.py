@@ -108,6 +108,9 @@ if caminho_arquivo:
         if col in df_display.columns:
             df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
 
+    if 'Cotação' in df_display.columns:
+        df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
+
     styled_df = df_display.style.applymap(colorir_lucro, subset=['Lucro/Prejuízo (R$)'])
     st.subheader("📋 Todas as Apostas")
     st.dataframe(styled_df, use_container_width=True, height=450, hide_index=True)
