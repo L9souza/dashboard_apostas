@@ -70,16 +70,13 @@ if df is not None:
     lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
     lucro_por_data['Data'] = pd.to_datetime(lucro_por_data['Data'], format='%d/%m/%Y')
 
-    # Gráfico com um estilo mais bonito, com linha mais espessa
-    fig_lucro = px.line(lucro_por_data, x='Data', y='Lucro/Prejuízo (R$)', markers=True, 
-                        title="Lucro/Prejuízo por Data", line_shape='linear')
+    # Alterar para barras verticais em vez de pontos
+    fig_lucro = px.bar(lucro_por_data, x='Data', y='Lucro/Prejuízo (R$)', 
+                       title="Lucro/Prejuízo por Data", color='Lucro/Prejuízo (R$)', 
+                       color_continuous_scale=['red', 'green'],  # Colorir barras de vermelho (prejuízo) a verde (lucro)
+                       labels={'Lucro/Prejuízo (R$)': 'Lucro/Prejuízo (R$)', 'Data': 'Data'})
 
-    # Ajustando a aparência do gráfico para se alinhar ao exemplo
-    fig_lucro.update_traces(
-        line=dict(width=3, color='blue'),  # Mudança na espessura da linha
-        marker=dict(color='yellow', size=8)  # Mudança nas marcações de pontos
-    )
-
+    # Ajustando o layout e aparência
     fig_lucro.update_layout(
         xaxis_title='Data',
         yaxis_title='Lucro/Prejuízo (R$)',
@@ -87,7 +84,9 @@ if df is not None:
         xaxis_tickangle=-45,  # Gira os ticks das datas para uma melhor visualização
         plot_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
         paper_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
-        font=dict(color='white')  # Texto em branco
+        font=dict(color='white'),  # Texto em branco
+        barmode='group',  # Adicionando um espaço entre as barras para evitar sobreposição
+        bargap=0.2  # Definindo o espaço entre as barras
     )
 
     st.plotly_chart(fig_lucro, use_container_width=True)
