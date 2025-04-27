@@ -87,12 +87,19 @@ if df is not None:
 
     # Formatar a coluna Lucro/Prejuízo (R$) com cor condicional
     def color_lucro(val):
-        color = 'green' if val > 0 else 'red' if val < 0 else 'black'
-        return f'color: {color};' + (' display: none;' if val == 0 else '')  # Ocultar zero ou dar formatação
+        if val > 0:
+            return f'color: green;'  # Lucro em verde
+        elif val < 0:
+            return f'color: red;'  # Prejuízo em vermelho
+        return ''  # Quando o valor for 0, não exibir cor
 
     # Aplicando formatação condicional
     df_style = df.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
 
-    # Exibir a tabela final
+    # Exibir a tabela final com formatação
     st.subheader("📋 Dados Completos")
-    st.dataframe(df_style, use_container_width=True)
+    st.dataframe(df_style.format({
+        'Valor Apostado (R$)': '{:,.2f}',
+        'Retorno Previsto (R$)': '{:,.2f}',
+        'Lucro/Prejuízo (R$)': '{:,.2f}',  # Formatar para não exibir muitos zeros à direita
+    }), use_container_width=True)
