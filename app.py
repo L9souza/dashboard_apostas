@@ -1,27 +1,57 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import os
 
 # Configurações da página
 st.set_page_config(page_title="Dashboard de Apostas", page_icon="🎯", layout="wide")
 
 st.title('🎯 Dashboard de Apostas Esportivas')
 
-uploaded_file = st.file_uploader("Escolha um arquivo CSV", type="csv")
+# Nome do arquivo que queremos encontrar
+nome_arquivo = 'apostas_atualizadas.csv'
 
-if uploaded_file is not None:
-    # Carregar o arquivo
-    df = pd.read_csv(uploaded_file, delimiter=';')
-    df.columns = df.columns.str.strip()  # remove espaços extras nos nomes
+# Começamos procurando a partir do diretório onde o script está sendo executado
+diretorio_base = os.getcwd()
 
-    # Conversões de tipo (garantir que números sejam tratados como números)
-    df['Valor Apostado (R$)'] = df['Valor Apostado (R$)'].str.replace(',', '.').astype(float)
-    df['Retorno Previsto (R$)'] = df['Retorno Previsto (R$)'].str.replace(',', '.').astype(float)
-    df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].str.replace(',', '.').astype(float)
+# Variável para armazenar o caminho do arquivo encontrado
+caminho_arquivo = None
 
-    # Corrigir data
-    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-    df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')  # Alterando a formatação da data
+# Procura o arquivo no diretório atual e em todas as subpastas
+for raiz, diretorios, arquivos in os.walk(diretorio_base):
+    if nome_arquivo in arquivos:
+        caminho_arquivo = os.path.join(raiz, nome_arquivo)
+        break
+
+# Se o arquivo for encontrado, carregamos o CSV
+if caminho_arquivo:
+    df = pd.read_csv(caminho_arquivo, delimiter=';')  # Use o caminho encontrado aqui
+else:
+    st.error(f"Arquivo '{nome_arquivo}' não encontrado a partir de {diretorio_base}.")
+    df = None
+
+# Se o DataFrame foi carregado com sucesso
+if df is not None:
+    df.columns = df.columns.str.strip()
+
+    # Limpeza dos dados
+    df = df.dropna(subset=["Data"])  # remove linhas vazias
+
+    # Correção da conversão de valores monetários
+    for col in ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)']:
+        df[col] = (
+            df[col].astype(str)
+            .str.replace('.', '', regex=False)
+            .str.replace(',', '.', regex=False)
+            .str.strip()
+            .astype(float)
+        )
+
+    # Substituir valores NaN ou None na coluna "Lucro/Prejuízo (R$)" com 0
+    df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].fillna(0)
+
+    # Ajustando a data para o formato brasileiro (sem hora)
+    df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%Y')
 
     # Estatísticas
     total_apostado = df['Valor Apostado (R$)'].sum()
@@ -36,28 +66,46 @@ if uploaded_file is not None:
 
     st.markdown("---")
 
-    # Gráfico 1: Lucro por Data (Estilo normal)
+    # Gráfico 1: Lucro por Data (ajustes feitos)
     lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
-
-    # Criando o gráfico com Plotly
-    fig_lucro = px.line(lucro_por_data, x='Data', y='Lucro/Prejuízo (R$)', markers=True,
+    lucro_por_data['Data'] = pd.to_datetime(lucro_por_data['Data'], format='%d/%m/%Y')
+    
+    # Gráfico com um estilo mais bonito, com linha mais espessa
+    fig_lucro = px.line(lucro_por_data, x='Data', y='Lucro/Prejuízo (R$)', markers=True, 
                         title="Lucro/Prejuízo por Data", line_shape='linear')
-
-    # Estilo do gráfico
+    
+    # Ajustando a aparência do gráfico para se alinhar ao exemplo
     fig_lucro.update_layout(
         xaxis_title='Data',
         yaxis_title='Lucro/Prejuízo (R$)',
-        xaxis=dict(tickmode='array', tickangle=45),
-        plot_bgcolor='rgb(30, 30, 30)',  # fundo do gráfico escuro
-        paper_bgcolor='rgb(30, 30, 30)',  # fundo do gráfico geral
-        font=dict(color='white')
+        xaxis_tickformat='%d/%m/%Y',  # Formatar o eixo X para o formato DD/MM/YYYY
+        xaxis_tickangle=-45,  # Gira os ticks das datas para uma melhor visualização
+        plot_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
+        paper_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
+        font=dict(color='white'),  # Texto em branco
+        line=dict(width=3, color='blue'),  # Mudança na espessura da linha
+        markers=dict(color='yellow', size=8)  # Mudança nas marcações de pontos
     )
-
-    # Exibindo o gráfico
+    
     st.plotly_chart(fig_lucro, use_container_width=True)
 
     st.markdown("---")
 
-    # Exibir a tabela final
+    # Formatar a coluna Lucro/Prejuízo (R$) com cor condicional
+    def color_lucro(val):
+        if val > 0:
+            return f'color: green;'  # Lucro em verde
+        elif val < 0:
+            return f'color: red;'  # Prejuízo em vermelho
+        return ''  # Quando o valor for 0, não exibir cor
+
+    # Aplicando formatação condicional
+    df_style = df.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
+
+    # Exibir a tabela final com formatação
     st.subheader("📋 Dados Completos")
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df_style.format({
+        'Valor Apostado (R$)': '{:,.2f}',
+        'Retorno Previsto (R$)': '{:,.2f}',
+        'Lucro/Prejuízo (R$)': '{:,.2f}',  # Formatar para não exibir muitos zeros à direita
+    }), use_container_width=True)
