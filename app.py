@@ -20,11 +20,13 @@ if uploaded_file is not None:
     # Remover espaços extras dos nomes das colunas
     df.columns = df.columns.str.strip()
     
-    # Cálculo do lucro/prejuízo
-    try:
-        df['Lucro/Prejuízo (R$)'] = df['Retorno Previsto (R$)'] - df['Valor Apostado (R$)']
-    except KeyError as e:
-        st.error(f"Erro: A coluna {e} não foi encontrada. Verifique os nomes das colunas.")
+    # Verificar se a coluna Lucro/Prejuízo já existe
+    if 'Lucro/Prejuízo (R$)' not in df.columns:
+        try:
+            df['Lucro/Prejuízo (R$)'] = df['Retorno Previsto'] - df['Valor Apostado (R$)']
+            st.success("Coluna 'Lucro/Prejuízo (R$)' criada com sucesso!")
+        except KeyError as e:
+            st.error(f"Erro: A coluna {e} não foi encontrada. Verifique os nomes das colunas.")
     
     # Exibir os dados
     st.write("**Tabela de Apostas:**")
@@ -32,14 +34,18 @@ if uploaded_file is not None:
     
     # Função para colorir as células baseado no lucro/prejuízo
     def colorize(val):
-        color = 'green' if val > 0 else 'red'
-        return f'color: {color}'
+        if val > 0:
+            return 'color: green'
+        elif val < 0:
+            return 'color: red'
+        else:
+            return 'color: gray'
     
     # Só aplicar a estilização se a coluna existir
     if 'Lucro/Prejuízo (R$)' in df.columns:
         styled_df = df.style.applymap(colorize, subset=['Lucro/Prejuízo (R$)'])
         
-        # Exibir a tabela estilizada corretamente
+        # Exibir a tabela estilizada
         st.write("**Tabela com Lucro/Prejuízo colorido:**")
         st.dataframe(styled_df, use_container_width=True)
     else:
