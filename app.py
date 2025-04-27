@@ -1,29 +1,32 @@
 import streamlit as st
 import pandas as pd
 
-# Configurar página
+# Configuração da página
 st.set_page_config(page_title="Dashboard de Apostas", page_icon="📈", layout="wide")
 
-# Título
+# Título do dashboard
 st.title('📈 Dashboard de Apostas Esportivas do LC')
 
-# Adiciona a opção para o usuário fazer upload do arquivo CSV
+# Carregar o arquivo CSV
 uploaded_file = st.file_uploader("Escolha um arquivo CSV", type="csv")
 
 if uploaded_file is not None:
-    # Carrega o CSV
+    # Carregar o CSV
     df = pd.read_csv(uploaded_file, delimiter=',')
     
-    # Mostra os nomes das colunas para checar se estão corretas
-    st.write("Nomes das colunas:", df.columns)
+    # Exibir as colunas para verificar se estão corretas
+    st.write("Colunas do arquivo CSV:", df.columns)
     
-    # Remove espaços extras nos nomes das colunas
+    # Remover espaços extras dos nomes das colunas
     df.columns = df.columns.str.strip()
     
-    # Cálculo do lucro/prejuízo (subtrai o valor apostado do retorno previsto)
-    df['Lucro/Prejuízo (R$)'] = df['Retorno Previsto (R$)'] - df['Valor Apostado (R$)']
+    # Cálculo do lucro/prejuízo (subtraindo o valor apostado do retorno previsto)
+    try:
+        df['Lucro/Prejuízo (R$)'] = df['Retorno Previsto (R$)'] - df['Valor Apostado (R$)']
+    except KeyError as e:
+        st.write(f"Erro: A coluna {e} não foi encontrada. Verifique os nomes das colunas.")
     
-    # Exibe os dados
+    # Exibir os dados
     st.write("**Tabela de Apostas:**")
     st.write(df)
     
@@ -32,12 +35,12 @@ if uploaded_file is not None:
         color = 'green' if val > 0 else 'red'
         return f'color: {color}'
     
-    # Aplica a cor no dataframe
+    # Aplicando a cor no dataframe
     styled_df = df.style.applymap(colorize, subset=['Lucro/Prejuízo (R$)'])
     
-    # Exibe a tabela estilizada com os lucros e prejuízos coloridos
+    # Exibir a tabela estilizada com lucros e prejuízos coloridos
     st.write("**Tabela com Lucro/Prejuízo colorido:**")
     st.write(styled_df)
-    
+
 else:
     st.write("Por favor, faça o upload de um arquivo CSV.")
