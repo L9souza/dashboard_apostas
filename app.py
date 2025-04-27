@@ -83,7 +83,7 @@ if df is not None:
         marker_color=lucro_por_data['Color'],
         text=lucro_por_data['Label'],
         hoverinfo='text',
-        width=0.5  # Ajuste para a espessura das barras
+        width=0.3  # Barras mais finas
     ))
 
     # Ajustando o layout do gráfico
