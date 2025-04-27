@@ -14,6 +14,9 @@ if uploaded_file is not None:
     # Carrega o CSV
     df = pd.read_csv(uploaded_file, delimiter=',')
     
+    # Mostra os nomes das colunas para checar se estão corretas
+    st.write("Nomes das colunas:", df.columns)
+    
     # Remove espaços extras nos nomes das colunas
     df.columns = df.columns.str.strip()
     
