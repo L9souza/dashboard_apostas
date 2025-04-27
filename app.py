@@ -29,7 +29,7 @@ if caminho_arquivo:
     df.columns = df.columns.str.strip()
 
     # Limpeza dos dados
-    df = df.dropna(subset=["Data"])  # remove linhas vazias
+    df = df.dropna(subset=["Data"])  # Remove linhas vazias
 
     # Correção da conversão de valores monetários
     for col in ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)']:
@@ -103,7 +103,7 @@ if caminho_arquivo:
 
     st.markdown("---")
 
-    # Exibir a tabela final formatando os valores monetários apenas na exibição
+    # Formatação Monetária para exibição
     df['Valor Apostado (R$)'] = df['Valor Apostado (R$)'].apply(lambda x: f"R$ {x:,.2f}")
     df['Retorno Previsto (R$)'] = df['Retorno Previsto (R$)'].apply(lambda x: f"R$ {x:,.2f}")
     df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].apply(lambda x: f"R$ {x:,.2f}")
