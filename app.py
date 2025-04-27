@@ -63,14 +63,25 @@ if df is not None:
 
     st.markdown("---")
 
-    # Gráfico 1: Lucro por Data
+    # Gráfico 1: Lucro por Data (ajustes feitos)
     lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
+    lucro_por_data['Data'] = pd.to_datetime(lucro_por_data['Data'], format='%d/%m/%Y')
+    
     fig_lucro = px.line(lucro_por_data, x='Data', y='Lucro/Prejuízo (R$)', markers=True,
                         title="Lucro/Prejuízo por Data")
+    
+    # Ajuste do gráfico para exibir as datas corretamente no eixo X
+    fig_lucro.update_layout(
+        xaxis_title='Data',
+        yaxis_title='Lucro/Prejuízo (R$)',
+        xaxis_tickformat='%d/%m/%Y',  # Formatar o eixo X para o formato DD/MM/YYYY
+        xaxis_tickangle=-45,  # Gira os ticks das datas para uma melhor visualização
+    )
+    
     st.plotly_chart(fig_lucro, use_container_width=True)
 
     st.markdown("---")
 
-    # Exibir a tabela final (sem a hora na data)
+    # Exibir a tabela final
     st.subheader("📋 Dados Completos")
     st.dataframe(df, use_container_width=True)
