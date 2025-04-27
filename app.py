@@ -83,7 +83,7 @@ if df is not None:
         marker_color=lucro_por_data['Color'],
         text=lucro_por_data['Label'],
         hoverinfo='text',
-        width=0.3,  # Barras mais finas
+        width=0.1,  # Barras ainda mais finas
         textposition='inside',  # Texto dentro da barra
         insidetextanchor='middle'  # Centralizando o texto
     ))
@@ -99,7 +99,7 @@ if df is not None:
         paper_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
         font=dict(color='white'),  # Texto em branco
         barmode='group',  # Grupos de barras
-        bargap=0.3  # Espaçamento entre as barras
+        bargap=0.4  # Aumentando o espaçamento entre as barras
     )
 
     st.plotly_chart(fig_lucro, use_container_width=True)
