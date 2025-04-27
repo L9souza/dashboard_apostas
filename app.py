@@ -36,44 +36,51 @@ if caminho_arquivo:
     # --- Tratamento de dados ---
     df = df.dropna(subset=["Data"])
 
-    # Definir as colunas que queremos converter
-    colunas_para_converter = ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)']
-    colunas_existentes = [col for col in colunas_para_converter if col in df.columns]
+    # Converter colunas necessárias
+    for col in ['Cotação', 'Valor Apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']:
+        if col in df.columns:
+            df[col] = (
+                df[col].astype(str)
+                .str.replace('.', '', regex=False)
+                .str.replace(',', '.', regex=False)
+                .str.strip()
+                .astype(float)
+            )
 
-    for col in colunas_existentes:
-        df[col] = (
-            df[col].astype(str)
-            .str.replace('.', '', regex=False)
-            .str.replace(',', '.', regex=False)
-            .str.strip()
-            .astype(float)
-        )
-
-    if 'Lucro/Prejuízo (R$)' in df.columns:
-        df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].fillna(0)
-    
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
 
-    # --- Consolidar dados por Data ---
-    colunas_agrupar = {col: 'sum' for col in ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)'] if col in df.columns}
-    df_consolidado = df.groupby('Data').agg(colunas_agrupar).reset_index()
+    # --- Calcular Lucro/Prejuízo se não existir ---
+    if 'Lucro/Prejuízo (R$)' not in df.columns and 'Ganho (R$)' in df.columns and 'Valor Apostado (R$)' in df.columns:
+        df['Lucro/Prejuízo (R$)'] = df['Ganho (R$)'] - df['Valor Apostado (R$)']
+
+    # --- Consolida dados ---
+    df_consolidado = df.groupby('Data').agg({
+        'Valor Apostado (R$)': 'sum',
+        'Ganho (R$)': 'sum',
+        'Lucro/Prejuízo (R$)': 'sum'
+    }).reset_index()
 
     df_consolidado['Data'] = df_consolidado['Data'].dt.strftime('%d/%m/%Y')
 
     # --- Métricas Principais ---
-    total_apostado = df_consolidado.get('Valor Apostado (R$)', pd.Series(dtype=float)).sum()
-    total_retorno = df_consolidado.get('Retorno Previsto (R$)', pd.Series(dtype=float)).sum()
-    total_lucro = df_consolidado.get('Lucro/Prejuízo (R$)', pd.Series(dtype=float)).sum()
+    qtd_apostas = len(df)
+    media_cotacao = df['Cotação'].mean() if 'Cotação' in df.columns else 0
+    total_lucro = df['Lucro/Prejuízo (R$)'].sum()
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("💰 Total Apostado", f"R$ {total_apostado:,.2f}")
-    col2.metric("🎯 Retorno Previsto", f"R$ {total_retorno:,.2f}")
+    col1.metric("📅 Quantidade de Apostas", f"{qtd_apostas}")
+    col2.metric("🔢 Média das Cotações", f"{media_cotacao:.2f}")
     col3.metric("📈 Lucro/Prejuízo", f"R$ {total_lucro:,.2f}", delta=f"{total_lucro:,.2f}")
 
     st.markdown("---")
 
-    # --- Gráfico de Lucro/Prejuízo por Data ---
-    if 'Lucro/Prejuízo (R$)' in df_consolidado.columns:
+    # --- Escolha de gráfico ---
+    opcao_grafico = st.sidebar.selectbox(
+        "Escolha o gráfico para exibir:",
+        ("Lucro/Prejuízo Consolidado", "Evolução do Lucro Acumulado")
+    )
+
+    if opcao_grafico == "Lucro/Prejuízo Consolidado":
         fig_lucro = go.Figure()
         fig_lucro.add_trace(go.Bar(
             x=df_consolidado['Data'],
@@ -96,7 +103,7 @@ if caminho_arquivo:
 
         st.plotly_chart(fig_lucro, use_container_width=True)
 
-        # --- Gráfico de Evolução Acumulada ---
+    elif opcao_grafico == "Evolução do Lucro Acumulado":
         df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
 
         fig_acumulado = go.Figure()
@@ -118,25 +125,25 @@ if caminho_arquivo:
 
         st.plotly_chart(fig_acumulado, use_container_width=True)
 
-        st.markdown("---")
+    st.markdown("---")
 
-        # --- Tabela de Dados ---
-        def colorir_lucro(val):
-            if isinstance(val, str) and val.startswith('R$ '):
-                val = float(val.replace('R$ ', '').replace(',', ''))
-            if isinstance(val, (int, float)):
-                if val > 0: return 'color: green; font-weight: bold;'
-                elif val < 0: return 'color: red; font-weight: bold;'
-            return ''
+    # --- Tabela de Dados ---
+    def colorir_lucro(val):
+        if isinstance(val, str) and val.startswith('R$ '):
+            val = float(val.replace('R$ ', '').replace(',', ''))
+        if isinstance(val, (int, float)):
+            if val > 0: return 'color: green; font-weight: bold;'
+            elif val < 0: return 'color: red; font-weight: bold;'
+        return ''
 
-        df_display = df_consolidado.copy()
-        for col in ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)']:
-            if col in df_display.columns:
-                df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
+    df_display = df.copy()
+    for col in ['Valor Apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
+        if col in df_display.columns:
+            df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
 
-        styled_df = df_display.style.applymap(colorir_lucro, subset=['Lucro/Prejuízo (R$)'])
-        st.subheader("📋 Dados Consolidados por Data")
-        st.dataframe(styled_df, use_container_width=True, height=450)
+    styled_df = df_display.style.applymap(colorir_lucro, subset=['Lucro/Prejuízo (R$)'])
+    st.subheader("📋 Todas as Apostas")
+    st.dataframe(styled_df, use_container_width=True, height=450)
 
 else:
     st.error(f"Arquivo '{nome_arquivo}' não encontrado. Por favor, envie o arquivo correto.")
