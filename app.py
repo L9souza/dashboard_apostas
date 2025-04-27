@@ -20,12 +20,12 @@ if uploaded_file is not None:
     # Remove espaços extras nos nomes das colunas
     df.columns = df.columns.str.strip()
     
+    # Cálculo do lucro/prejuízo (subtrai o valor apostado do retorno previsto)
+    df['Lucro/Prejuízo (R$)'] = df['Retorno Previsto (R$)'] - df['Valor Apostado (R$)']
+    
     # Exibe os dados
     st.write("**Tabela de Apostas:**")
     st.write(df)
-    
-    # Calcular lucro/prejuízo automaticamente
-    df['Lucro/Prejuízo (R$)'] = df['Retorno Previsto (R$)'] - df['Valor Apostado (R$)']
     
     # Função para colorir as células baseado no lucro/prejuízo
     def colorize(val):
@@ -35,7 +35,7 @@ if uploaded_file is not None:
     # Aplica a cor no dataframe
     styled_df = df.style.applymap(colorize, subset=['Lucro/Prejuízo (R$)'])
     
-    # Exibe a tabela estilizada
+    # Exibe a tabela estilizada com os lucros e prejuízos coloridos
     st.write("**Tabela com Lucro/Prejuízo colorido:**")
     st.write(styled_df)
     
