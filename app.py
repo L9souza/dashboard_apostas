@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 import os
 
 # Configurações da página
@@ -66,18 +66,29 @@ if df is not None:
 
     st.markdown("---")
 
-    # Gráfico 1: Lucro por Data (ajustes feitos)
+    # Gráfico 1: Lucro por Data
     lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
     lucro_por_data['Data'] = pd.to_datetime(lucro_por_data['Data'], format='%d/%m/%Y')
 
-    # Alterar para barras verticais em vez de pontos
-    fig_lucro = px.bar(lucro_por_data, x='Data', y='Lucro/Prejuízo (R$)', 
-                       title="Lucro/Prejuízo por Data", color='Lucro/Prejuízo (R$)', 
-                       color_continuous_scale=['red', 'green'],  # Colorir barras de vermelho (prejuízo) a verde (lucro)
-                       labels={'Lucro/Prejuízo (R$)': 'Lucro/Prejuízo (R$)', 'Data': 'Data'})
+    # Definindo as cores e textos para lucro (verde) e prejuízo (vermelho)
+    lucro_por_data['Color'] = lucro_por_data['Lucro/Prejuízo (R$)'].apply(lambda x: 'green' if x > 0 else 'red')
+    lucro_por_data['Label'] = lucro_por_data['Lucro/Prejuízo (R$)'].apply(lambda x: f"LUCRADO {x}" if x > 0 else f"PERDEU {x}")
 
-    # Ajustando o layout e aparência
+    # Criando o gráfico de barras com Plotly
+    fig_lucro = go.Figure()
+
+    fig_lucro.add_trace(go.Bar(
+        x=lucro_por_data['Data'],
+        y=lucro_por_data['Lucro/Prejuízo (R$)'],
+        marker_color=lucro_por_data['Color'],
+        text=lucro_por_data['Label'],
+        hoverinfo='text',
+        width=0.5  # Ajuste para a espessura das barras
+    ))
+
+    # Ajustando o layout do gráfico
     fig_lucro.update_layout(
+        title="Lucro/Prejuízo por Data",
         xaxis_title='Data',
         yaxis_title='Lucro/Prejuízo (R$)',
         xaxis_tickformat='%d/%m/%Y',  # Formatar o eixo X para o formato DD/MM/YYYY
@@ -85,8 +96,8 @@ if df is not None:
         plot_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
         paper_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
         font=dict(color='white'),  # Texto em branco
-        barmode='group',  # Adicionando um espaço entre as barras para evitar sobreposição
-        bargap=0.2  # Definindo o espaço entre as barras
+        barmode='group',  # Grupos de barras
+        bargap=0.3  # Espaçamento entre as barras
     )
 
     st.plotly_chart(fig_lucro, use_container_width=True)
