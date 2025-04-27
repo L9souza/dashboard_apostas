@@ -68,5 +68,14 @@ if caminho_arquivo:
     lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
     lucro_por_data['Data'] = pd.to_datetime(lucro_por_data['Data'], format='%d/%m/%Y')
 
-    # Definindo as cores e textos para lucro (verde) e prejuízo (vermelho)
-    lucro
+# Gráfico de barras de lucro por data
+fig = px.bar(
+    lucro_por_data,
+    x='Data',
+    y='Lucro/Prejuízo (R$)',
+    color='Lucro/Prejuízo (R$)',
+    color_continuous_scale=['red', 'green'],
+    title="Lucro/Prejuízo por Data"
+)
+st.plotly_chart(fig, use_container_width=True)
+
