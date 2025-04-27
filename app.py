@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
 
-# Configuração da página
+# Configurar página
 st.set_page_config(page_title="Dashboard de Apostas", page_icon="📈", layout="wide")
 
-# Título do dashboard
+# Título
 st.title('📈 Dashboard de Apostas Esportivas do LC')
 
 # Carregar o arquivo CSV
@@ -44,3 +44,4 @@ if uploaded_file is not None:
 
 else:
     st.write("Por favor, faça o upload de um arquivo CSV.")
+
