@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import os
 
@@ -79,4 +78,50 @@ if caminho_arquivo:
         x=lucro_por_data['Data'],
         y=lucro_por_data['Lucro/Prejuízo (R$)'],
         marker_color=lucro_por_data['Color'],
-        text=luc
+        text=lucro_por_data['Label'],
+        hoverinfo='text',
+        width=0.1,  # Barras mais finas
+        textposition='inside',  # Texto dentro da barra
+        insidetextanchor='middle'  # Centralizando o texto
+    ))
+
+    # Ajustando o layout do gráfico
+    fig_lucro.update_layout(
+        title="Lucro/Prejuízo por Data",
+        xaxis_title='Data',
+        yaxis_title='Lucro/Prejuízo (R$)',
+        xaxis_tickformat='%d/%m/%Y',  # Formatar o eixo X para o formato DD/MM/YYYY
+        xaxis_tickangle=-45,  # Gira os ticks das datas para uma melhor visualização
+        plot_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
+        paper_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
+        font=dict(color='white'),  # Texto em branco
+        barmode='group',  # Grupos de barras
+        bargap=0.4  # Aumentando o espaçamento entre as barras
+    )
+
+    st.plotly_chart(fig_lucro, use_container_width=True)
+
+    st.markdown("---")
+
+    # Exibir a tabela final formatando os valores monetários apenas na exibição
+    df['Valor Apostado (R$)'] = df['Valor Apostado (R$)'].apply(lambda x: f"R$ {x:,.2f}")
+    df['Retorno Previsto (R$)'] = df['Retorno Previsto (R$)'].apply(lambda x: f"R$ {x:,.2f}")
+    df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].apply(lambda x: f"R$ {x:,.2f}")
+
+    # Formatação condicional para Lucro e Prejuízo
+    def color_lucro(val):
+        if val > 0:
+            return 'color: green;'  # Lucro em verde
+        elif val < 0:
+            return 'color: red;'  # Prejuízo em vermelho
+        return ''  # Quando o valor for 0, não exibir cor
+
+    # Aplicando formatação condicional
+    df_style = df.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
+
+    # Exibir a tabela final com o índice começando de 1
+    st.subheader("📋 Dados Completos")
+    st.dataframe(df_style, use_container_width=True)
+
+else:
+    st.error(f"Arquivo '{nome_arquivo}' não encontrado a partir de {diretorio_base}.")
