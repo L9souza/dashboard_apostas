@@ -79,14 +79,16 @@ if caminho_arquivo:
     st.plotly_chart(fig_lucro, use_container_width=True)
     st.markdown("---")
 
-    # Formatação condicional para colorir **somente o texto**.
+    # Formatação condicional da tabela (APENAS TEXTO COLORIDO)
     def color_lucro(val):
-        if isinstance(val, (int, float)):  # Verifica se o valor é numérico
+        if isinstance(val, str) and val.startswith('R$ '):
+            val = float(val.replace('R$ ', '').replace('.', '').replace(',', '.'))
+        if isinstance(val, (int, float)):
             if val > 0:
-                return 'color: green;'  # Texto verde para lucro
+                return 'color: green;'  # Apenas texto verde
             elif val < 0:
-                return 'color: red;'    # Texto vermelho para prejuízo
-        return ''  # Quando o valor for 0 ou não for numérico, não exibir cor
+                return 'color: red;'    # Apenas texto vermelho
+        return ''
 
     # Formata os valores para exibição (R$)
     df_display = df.copy()
