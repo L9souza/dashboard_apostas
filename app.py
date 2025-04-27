@@ -110,7 +110,6 @@ if caminho_arquivo:
 
     # Formatação condicional para Lucro e Prejuízo
     def color_lucro(val):
-        # Verifica se o valor é numérico e aplica a cor de fundo (verde ou vermelho)
         if isinstance(val, (int, float)):
             if val > 0:
                 return 'background-color: green; color: white;'  # Lucro em verde com texto branco
@@ -123,7 +122,7 @@ if caminho_arquivo:
 
     # Exibir a tabela final com o índice começando de 1
     st.subheader("📋 Dados Completos")
-    st.dataframe(df_style, use_container_width=True)
+    st.table(df_style)  # Aqui estamos usando st.table para garantir que o estilo seja aplicado corretamente
 
 else:
     st.error(f"Arquivo '{nome_arquivo}' não encontrado a partir de {diretorio_base}.")
