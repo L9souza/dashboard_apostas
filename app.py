@@ -8,30 +8,23 @@ st.set_page_config(page_title="Dashboard de Apostas", page_icon="🎯", layout="
 
 st.title('🎯 Dashboard de Apostas Esportivas')
 
-# Nome do arquivo que queremos encontrar
+# Nome do arquivo CSV
 nome_arquivo = 'apostas_atualizadas.csv'
 
-# Começamos procurando a partir do diretório onde o script está sendo executado
-diretorio_base = os.getcwd()
-
-# Variável para armazenar o caminho do arquivo encontrado
+# Procura o arquivo no diretório atual
 caminho_arquivo = None
-
-# Procura o arquivo no diretório atual e em todas as subpastas
-for raiz, diretorios, arquivos in os.walk(diretorio_base):
+for raiz, _, arquivos in os.walk(os.getcwd()):
     if nome_arquivo in arquivos:
         caminho_arquivo = os.path.join(raiz, nome_arquivo)
         break
 
-# Se o arquivo for encontrado, carregamos o CSV
 if caminho_arquivo:
-    df = pd.read_csv(caminho_arquivo, delimiter=';')  # Use o caminho encontrado aqui
+    # Carrega e limpa os dados
+    df = pd.read_csv(caminho_arquivo, delimiter=';')
     df.columns = df.columns.str.strip()
+    df = df.dropna(subset=["Data"])
 
-    # Limpeza dos dados
-    df = df.dropna(subset=["Data"])  # Remove linhas vazias
-
-    # Correção da conversão de valores monetários
+    # Converte valores monetários para float
     for col in ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)']:
         df[col] = (
             df[col].astype(str)
@@ -41,21 +34,16 @@ if caminho_arquivo:
             .astype(float)
         )
 
-    # Substituir valores NaN ou None na coluna "Lucro/Prejuízo (R$)" com 0
     df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].fillna(0)
-
-    # Ajustando a data para o formato brasileiro (sem hora)
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%Y')
-
-    # Adicionando 1 ao índice para que comece a partir de 1
-    df.index = df.index + 1
+    df.index = df.index + 1  # Índice começa em 1
 
     # Estatísticas
     total_apostado = df['Valor Apostado (R$)'].sum()
     total_retorno = df['Retorno Previsto (R$)'].sum()
     total_lucro = df['Lucro/Prejuízo (R$)'].sum()
 
-    # Layout com 3 colunas
+    # Métricas (3 colunas)
     col1, col2, col3 = st.columns(3)
     col1.metric("💰 Total Apostado", f"R$ {total_apostado:,.2f}")
     col2.metric("🎯 Retorno Previsto", f"R$ {total_retorno:,.2f}")
@@ -63,66 +51,55 @@ if caminho_arquivo:
 
     st.markdown("---")
 
-    # Gráfico 1: Lucro por Data (ajustes feitos)
+    # Gráfico de Lucro por Data (Plotly)
     lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
     lucro_por_data['Data'] = pd.to_datetime(lucro_por_data['Data'], format='%d/%m/%Y')
-
-    # Definindo as cores e textos para lucro (verde) e prejuízo (vermelho)
     lucro_por_data['Color'] = lucro_por_data['Lucro/Prejuízo (R$)'].apply(lambda x: 'green' if x > 0 else 'red')
-    lucro_por_data['Label'] = lucro_por_data['Lucro/Prejuízo (R$)'].apply(lambda x: f"LUCRADO {x}" if x > 0 else f"PERDEU {x}")
+    lucro_por_data['Label'] = lucro_por_data['Lucro/Prejuízo (R$)'].apply(lambda x: f"LUCRADO {x:.2f}" if x > 0 else f"PERDEU {x:.2f}")
 
-    # Criando o gráfico de barras com Plotly
     fig_lucro = go.Figure()
-
     fig_lucro.add_trace(go.Bar(
         x=lucro_por_data['Data'],
         y=lucro_por_data['Lucro/Prejuízo (R$)'],
         marker_color=lucro_por_data['Color'],
         text=lucro_por_data['Label'],
-        hoverinfo='text',
-        width=0.1,  # Barras mais finas
-        textposition='inside',  # Texto dentro da barra
-        insidetextanchor='middle'  # Centralizando o texto
+        width=0.1,
+        textposition='inside'
     ))
 
-    # Ajustando o layout do gráfico
     fig_lucro.update_layout(
         title="Lucro/Prejuízo por Data",
         xaxis_title='Data',
         yaxis_title='Lucro/Prejuízo (R$)',
-        xaxis_tickformat='%d/%m/%Y',  # Formatar o eixo X para o formato DD/MM/YYYY
-        xaxis_tickangle=-45,  # Gira os ticks das datas para uma melhor visualização
-        plot_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
-        paper_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
-        font=dict(color='white'),  # Texto em branco
-        barmode='group',  # Grupos de barras
-        bargap=0.4  # Aumentando o espaçamento entre as barras
+        xaxis_tickformat='%d/%m/%Y',
+        plot_bgcolor='rgb(30, 30, 30)',
+        font=dict(color='white')
     )
 
     st.plotly_chart(fig_lucro, use_container_width=True)
-
     st.markdown("---")
 
-    # **Importante**: Aqui, aplicamos a formatação monetária apenas para exibição.
-    df['Valor Apostado (R$)'] = df['Valor Apostado (R$)'].apply(lambda x: f"R$ {x:,.2f}")
-    df['Retorno Previsto (R$)'] = df['Retorno Previsto (R$)'].apply(lambda x: f"R$ {x:,.2f}")
-    df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].apply(lambda x: f"R$ {x:,.2f}")
-
-    # Formatação condicional para Lucro e Prejuízo
+    # Formatação condicional da tabela (Lucro: verde, Prejuízo: vermelho)
     def color_lucro(val):
+        if isinstance(val, str) and val.startswith('R$ '):
+            val = float(val.replace('R$ ', '').replace('.', '').replace(',', '.'))
         if isinstance(val, (int, float)):
             if val > 0:
-                return 'background-color: green; color: white;'  # Lucro em verde com texto branco
+                return 'background-color: #4CAF50; color: white;'  # Verde
             elif val < 0:
-                return 'background-color: red; color: white;'  # Prejuízo em vermelho com texto branco
-        return ''  # Quando o valor for 0 ou não for numérico, não exibir cor
+                return 'background-color: #F44336; color: white;'  # Vermelho
+        return ''
 
-    # Aplicando formatação condicional com a função color_lucro
-    df_style = df.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
+    # Formata os valores para exibição (R$)
+    df_display = df.copy()
+    for col in ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)']:
+        df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
 
-    # Exibir a tabela final com o índice começando de 1
+    # Aplica a formatação condicional
+    styled_df = df_display.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
+
     st.subheader("📋 Dados Completos")
-    st.table(df_style)  # Aqui estamos usando st.table para garantir que o estilo seja aplicado corretamente
+    st.dataframe(styled_df, use_container_width=True, height=500)
 
 else:
-    st.error(f"Arquivo '{nome_arquivo}' não encontrado a partir de {diretorio_base}.")
+    st.error(f"Arquivo '{nome_arquivo}' não encontrado.")
