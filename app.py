@@ -113,9 +113,9 @@ if caminho_arquivo:
         # Verifica se o valor é numérico e aplica a cor
         if isinstance(val, (int, float)):
             if val > 0:
-                return 'color: green;'  # Lucro em verde
+                return 'background-color: green; color: white;'  # Lucro em verde com texto branco
             elif val < 0:
-                return 'color: red;'  # Prejuízo em vermelho
+                return 'background-color: red; color: white;'  # Prejuízo em vermelho com texto branco
         return ''  # Quando o valor for 0 ou não for numérico, não exibir cor
 
     # Aplicando formatação condicional
