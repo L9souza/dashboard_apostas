@@ -69,12 +69,17 @@ if df is not None:
     # Gráfico 1: Lucro por Data (ajustes feitos)
     lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
     lucro_por_data['Data'] = pd.to_datetime(lucro_por_data['Data'], format='%d/%m/%Y')
-    
+
     # Gráfico com um estilo mais bonito, com linha mais espessa
     fig_lucro = px.line(lucro_por_data, x='Data', y='Lucro/Prejuízo (R$)', markers=True, 
                         title="Lucro/Prejuízo por Data", line_shape='linear')
-    
+
     # Ajustando a aparência do gráfico para se alinhar ao exemplo
+    fig_lucro.update_traces(
+        line=dict(width=3, color='blue'),  # Mudança na espessura da linha
+        marker=dict(color='yellow', size=8)  # Mudança nas marcações de pontos
+    )
+
     fig_lucro.update_layout(
         xaxis_title='Data',
         yaxis_title='Lucro/Prejuízo (R$)',
@@ -82,11 +87,9 @@ if df is not None:
         xaxis_tickangle=-45,  # Gira os ticks das datas para uma melhor visualização
         plot_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
         paper_bgcolor='rgb(30, 30, 30)',  # Fundo escuro
-        font=dict(color='white'),  # Texto em branco
-        line=dict(width=3, color='blue'),  # Mudança na espessura da linha
-        markers=dict(color='yellow', size=8)  # Mudança nas marcações de pontos
+        font=dict(color='white')  # Texto em branco
     )
-    
+
     st.plotly_chart(fig_lucro, use_container_width=True)
 
     st.markdown("---")
@@ -94,9 +97,9 @@ if df is not None:
     # Formatar a coluna Lucro/Prejuízo (R$) com cor condicional
     def color_lucro(val):
         if val > 0:
-            return f'color: green;'  # Lucro em verde
+            return 'color: green;'  # Lucro em verde
         elif val < 0:
-            return f'color: red;'  # Prejuízo em vermelho
+            return 'color: red;'  # Prejuízo em vermelho
         return ''  # Quando o valor for 0, não exibir cor
 
     # Aplicando formatação condicional
