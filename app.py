@@ -94,7 +94,7 @@ if caminho_arquivo:
         mode='lines+markers',
         line=dict(color='gold', width=3),
         marker=dict(size=10)
-    )
+    ))
 
     fig_acumulado.update_layout(
         title="Evolução do Lucro Acumulado",
