@@ -28,11 +28,6 @@ if caminho_arquivo:
     df = pd.read_csv(caminho_arquivo, delimiter=';')
     df.columns = df.columns.str.strip()
 
-    # Mostrar colunas encontradas na sidebar
-    with st.sidebar:
-        st.subheader("🔎 Colunas no arquivo:")
-        st.write(df.columns.tolist())
-
     # --- Tratamento de dados ---
     df = df.dropna(subset=["Data"])
 
@@ -136,14 +131,14 @@ if caminho_arquivo:
             elif val < 0: return 'color: red; font-weight: bold;'
         return ''
 
-    df_display = df.copy()
+    df_display = df.reset_index(drop=True).copy()
     for col in ['Valor Apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
         if col in df_display.columns:
             df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
 
     styled_df = df_display.style.applymap(colorir_lucro, subset=['Lucro/Prejuízo (R$)'])
     st.subheader("📋 Todas as Apostas")
-    st.dataframe(styled_df, use_container_width=True, height=450)
+    st.dataframe(styled_df, use_container_width=True, height=450, hide_index=True)
 
 else:
     st.error(f"Arquivo '{nome_arquivo}' não encontrado. Por favor, envie o arquivo correto.")
