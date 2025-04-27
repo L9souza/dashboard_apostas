@@ -16,9 +16,17 @@ if uploaded_file is not None:
 
     # Limpeza dos dados
     df = df.dropna(subset=["Data"])  # remove linhas vazias
-    df['Valor Apostado (R$)'] = df['Valor Apostado (R$)'].astype(float)
-    df['Retorno Previsto (R$)'] = df['Retorno Previsto (R$)'].astype(float)
-    df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].astype(float)
+
+    # Correção da conversão de valores monetários
+    for col in ['Valor Apostado (R$)', 'Retorno Previsto (R$)', 'Lucro/Prejuízo (R$)']:
+        df[col] = (
+            df[col].astype(str)
+            .str.replace('.', '', regex=False)
+            .str.replace(',', '.', regex=False)
+            .str.strip()
+            .astype(float)
+        )
+
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
 
     # Estatísticas
