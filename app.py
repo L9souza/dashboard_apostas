@@ -47,6 +47,9 @@ if df is not None:
             .astype(float)
         )
 
+    # Substituir valores NaN ou None na coluna "Lucro/Prejuízo (R$)" com 0
+    df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].fillna(0)
+
     # Ajustando a data para o formato brasileiro (sem hora)
     df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce').dt.strftime('%d/%m/%Y')
 
@@ -85,7 +88,7 @@ if df is not None:
     # Formatar a coluna Lucro/Prejuízo (R$) com cor condicional
     def color_lucro(val):
         color = 'green' if val > 0 else 'red' if val < 0 else 'black'
-        return f'color: {color}'
+        return f'color: {color};' + (' display: none;' if val == 0 else '')  # Ocultar zero ou dar formatação
 
     # Aplicando formatação condicional
     df_style = df.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
