@@ -14,6 +14,9 @@ if uploaded_file is not None:
     # Carrega o CSV
     df = pd.read_csv(uploaded_file, delimiter=',')
     
+    # Remove espaços extras nos nomes das colunas
+    df.columns = df.columns.str.strip()
+    
     # Exibe os dados
     st.write("**Tabela de Apostas:**")
     st.write(df)
