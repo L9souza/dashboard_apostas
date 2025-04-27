@@ -31,8 +31,9 @@ if caminho_arquivo:
     # --- Tratamento de dados ---
     df = df.dropna(subset=["Data"])
 
-    # Converter colunas necessárias
-    for col in ['Cotação', 'Valor Apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']:
+    # Converter colunas necessárias apenas se existirem
+    colunas_para_converter = ['Cotação', 'Valor Apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
+    for col in colunas_para_converter:
         if col in df.columns:
             df[col] = (
                 df[col].astype(str)
