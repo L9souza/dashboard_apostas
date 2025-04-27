@@ -104,9 +104,27 @@ if caminho_arquivo:
 
     st.markdown("---")
 
+    # Formatar as colunas com os valores com vírgula e duas casas decimais
+    df['Valor Apostado (R$)'] = df['Valor Apostado (R$)'].apply(lambda x: f"{x:,.2f}".replace('.', ','))  # Formata valor apostado com vírgula
+
+    # Formatação condicional para Lucro e Prejuízo
+    def color_lucro(val):
+        if val > 0:
+            return 'color: green;'  # Lucro em verde
+        elif val < 0:
+            return 'color: red;'  # Prejuízo em vermelho
+        return ''  # Quando o valor for 0, não exibir cor
+
+    # Aplicando formatação condicional
+    df_style = df.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
+
     # Exibir a tabela final com o índice começando de 1
     st.subheader("📋 Dados Completos")
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df_style.format({
+        'Valor Apostado (R$)': '{:,.2f}',  # Agora com vírgula como separador decimal
+        'Retorno Previsto (R$)': '{:,.2f}',  # Mantém o formato original
+        'Lucro/Prejuízo (R$)': '{:,.2f}',  # Formatar para não exibir muitos zeros à direita
+    }), use_container_width=True)
 
 else:
     st.error(f"Arquivo '{nome_arquivo}' não encontrado a partir de {diretorio_base}.")
