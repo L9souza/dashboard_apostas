@@ -103,18 +103,19 @@ if caminho_arquivo:
 
     st.markdown("---")
 
-    # Formatação Monetária para exibição
+    # **Importante**: Aqui, aplicamos a formatação monetária apenas para exibição.
     df['Valor Apostado (R$)'] = df['Valor Apostado (R$)'].apply(lambda x: f"R$ {x:,.2f}")
     df['Retorno Previsto (R$)'] = df['Retorno Previsto (R$)'].apply(lambda x: f"R$ {x:,.2f}")
     df['Lucro/Prejuízo (R$)'] = df['Lucro/Prejuízo (R$)'].apply(lambda x: f"R$ {x:,.2f}")
 
     # Formatação condicional para Lucro e Prejuízo
     def color_lucro(val):
-        if val > 0:
-            return 'color: green;'  # Lucro em verde
-        elif val < 0:
-            return 'color: red;'  # Prejuízo em vermelho
-        return ''  # Quando o valor for 0, não exibir cor
+        if isinstance(val, (int, float)):  # Certificar que é um valor numérico
+            if val > 0:
+                return 'color: green;'  # Lucro em verde
+            elif val < 0:
+                return 'color: red;'  # Prejuízo em vermelho
+        return ''  # Quando o valor for 0 ou não for numérico, não exibir cor
 
     # Aplicando formatação condicional
     df_style = df.style.applymap(color_lucro, subset=['Lucro/Prejuízo (R$)'])
