@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import os
 
 # Configurações da página
@@ -63,9 +64,9 @@ if caminho_arquivo:
 
     st.markdown("---")
 
-    # Exibir a tabela final com o índice começando de 1
-    st.subheader("📋 Dados Completos")
-    st.dataframe(df, use_container_width=True)
+    # Gráfico 1: Lucro por Data (ajustes feitos)
+    lucro_por_data = df.groupby('Data')['Lucro/Prejuízo (R$)'].sum().reset_index()
+    lucro_por_data['Data'] = pd.to_datetime(lucro_por_data['Data'], format='%d/%m/%Y')
 
-else:
-    st.error(f"Arquivo '{nome_arquivo}' não encontrado a partir de {diretorio_base}.")
+    # Definindo as cores e textos para lucro (verde) e prejuízo (vermelho)
+    lucro
