@@ -16,24 +16,20 @@ st.title('🎯 Dashboard de Apostas Esportivas')
 @st.cache_data
 def carregar_dados():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_r9CxtMoWnWEkzzYwHAekTItzRrXjFvirDMNlokjlF82QzA8srPgDADnwRLef8WXh9XtFaIbwjRWE/pub?output=csv"
-    df = pd.read_csv(url, skiprows=5)
-    df.columns = df.columns.str.strip()
+    df = pd.read_csv(url)  # Sem skiprows
+    df.columns = df.columns.str.strip()  # Tira espaços dos nomes das colunas
     return df
 
-# --- Botão para atualizar os dados ---
+# --- Botão para atualizar ---
 if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
 
-# Carregar dados
+# Carrega os dados
 df = carregar_dados()
 
-# Sidebar debug
-st.sidebar.subheader("🔍 Colunas encontradas:")
-st.sidebar.write(df.columns.tolist())
-
-# Verificação da coluna 'Data'
+# --- Checar coluna 'Data' ---
 if "Data" not in df.columns:
-    st.error("🚨 A coluna 'Data' não foi encontrada! Corrija o Google Sheets para ter uma coluna chamada exatamente 'Data'.")
+    st.error("🚨 A coluna 'Data' não foi encontrada! Corrija o Google Sheets.")
     st.stop()
 
 # --- Tratamento da coluna 'Data' ---
@@ -41,7 +37,7 @@ df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-# --- Conversão de valores monetários e cotações ---
+# --- Converter valores monetários e cotação ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
 for col in colunas_para_converter:
     if col in df.columns:
@@ -53,7 +49,7 @@ for col in colunas_para_converter:
             .astype(float)
         )
 
-# --- Filtro por Status ---
+# --- Filtro de Status ---
 status_options = df['Status'].dropna().unique().tolist()
 status_selecionado = st.sidebar.multiselect(
     "🎯 Filtrar por Status",
@@ -61,10 +57,10 @@ status_selecionado = st.sidebar.multiselect(
     default=status_options
 )
 
-# Filtrar os dados
+# Aplicar o filtro
 df_filtrado = df[df['Status'].isin(status_selecionado)]
 
-# --- Consolidação de dados ---
+# --- Consolidação dos dados ---
 df_consolidado = df_filtrado.groupby('Data').agg({
     'Valor apostado (R$)': 'sum',
     'Ganho (R$)': 'sum',
@@ -108,7 +104,7 @@ st.plotly_chart(fig_lucro, use_container_width=True)
 
 st.markdown("---")
 
-# --- Tabela de Apostas ---
+# --- Tabela de Dados ---
 def colorir_lucro(val):
     if isinstance(val, str) and val.startswith('R$ '):
         val = float(val.replace('R$ ', '').replace(',', ''))
