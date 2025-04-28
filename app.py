@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# Configurações iniciais da página
+# Configurações da página
 st.set_page_config(
     page_title="Dashboard de Apostas",
     page_icon="🎯",
@@ -12,10 +12,10 @@ st.set_page_config(
 
 st.title('🎯 Dashboard de Apostas Esportivas')
 
-# --- Carregar dados diretamente do Google Sheets publicado ---
+# --- Carregar dados do Google Sheets publicado ---
 url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_r9CxtMoWnWEkzzYwHAekTItzRrXjFvirDMNlokjlF82QzA8srPgDADnwRLef8WXh9XtFaIbwjRWE/pub?output=csv"
 df = pd.read_csv(url)
-df.columns = df.columns.str.strip()  # Remove espaços nas bordas dos nomes das colunas
+df.columns = df.columns.str.strip()  # Remove espaços extras nos nomes de colunas
 
 # --- Mostrar as colunas carregadas para debug ---
 st.sidebar.subheader("🔍 Colunas encontradas:")
@@ -26,11 +26,13 @@ if "Data" not in df.columns:
     st.error("🚨 A coluna 'Data' não foi encontrada! Corrija o Google Sheets para ter uma coluna chamada exatamente 'Data'.")
     st.stop()
 
-# --- Tratamento de dados ---
+# --- Corrigir e tratar a coluna Data ---
+df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
+df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')  # Formatar data bonito: dd/mm/yyyy
 
-# Converter colunas necessárias apenas se existirem
-colunas_para_converter = ['Cotação', 'Valor Apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
+# --- Converter colunas financeiras (se existirem) ---
+colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
 for col in colunas_para_converter:
     if col in df.columns:
         df[col] = (
@@ -41,17 +43,9 @@ for col in colunas_para_converter:
             .astype(float)
         )
 
-# Formatar data corretamente
-df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
-
-# --- Calcular Lucro/Prejuízo se não existir ---
-if 'Lucro/Prejuízo (R$)' not in df.columns and 'Ganho (R$)' in df.columns and 'Valor Apostado (R$)' in df.columns:
-    df['Lucro/Prejuízo (R$)'] = df['Ganho (R$)'] - df['Valor Apostado (R$)']
-
-# --- Consolida dados ---
+# --- Consolida dados por Data ---
 df_consolidado = df.groupby('Data').agg({
-    'Valor Apostado (R$)': 'sum',
+    'Valor apostado (R$)': 'sum',
     'Ganho (R$)': 'sum',
     'Lucro/Prejuízo (R$)': 'sum'
 }).reset_index()
@@ -93,7 +87,7 @@ st.plotly_chart(fig_lucro, use_container_width=True)
 
 st.markdown("---")
 
-# --- Tabela de Dados ---
+# --- Tabela de Dados Final ---
 def colorir_lucro(val):
     if isinstance(val, str) and val.startswith('R$ '):
         val = float(val.replace('R$ ', '').replace(',', ''))
@@ -106,10 +100,12 @@ def colorir_lucro(val):
 
 df_display = df.reset_index(drop=True).copy()
 
-for col in ['Valor Apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
+# Formatar valores financeiros
+for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
         df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
 
+# Formatar cotação com 2 casas
 if 'Cotação' in df_display.columns:
     df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
 
