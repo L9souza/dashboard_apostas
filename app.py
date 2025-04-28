@@ -12,26 +12,36 @@ st.set_page_config(
 
 st.title('🎯 Dashboard de Apostas Esportivas')
 
-# --- Carregar dados do Google Sheets publicado ---
-url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_r9CxtMoWnWEkzzYwHAekTItzRrXjFvirDMNlokjlF82QzA8srPgDADnwRLef8WXh9XtFaIbwjRWE/pub?output=csv"
-df = pd.read_csv(url)
-df.columns = df.columns.str.strip()  # Remove espaços extras nos nomes de colunas
+# --- Função para carregar os dados ---
+@st.cache_data
+def carregar_dados():
+    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_r9CxtMoWnWEkzzYwHAekTItzRrXjFvirDMNlokjlF82QzA8srPgDADnwRLef8WXh9XtFaIbwjRWE/pub?output=csv"
+    df = pd.read_csv(url, skiprows=5)
+    df.columns = df.columns.str.strip()
+    return df
 
-# --- Mostrar as colunas carregadas para debug ---
+# --- Botão para atualizar os dados ---
+if st.button("🔄 Atualizar Dados"):
+    st.cache_data.clear()
+
+# Carregar dados
+df = carregar_dados()
+
+# Sidebar debug
 st.sidebar.subheader("🔍 Colunas encontradas:")
 st.sidebar.write(df.columns.tolist())
 
-# --- Conferir se existe a coluna 'Data' ---
+# Verificação da coluna 'Data'
 if "Data" not in df.columns:
     st.error("🚨 A coluna 'Data' não foi encontrada! Corrija o Google Sheets para ter uma coluna chamada exatamente 'Data'.")
     st.stop()
 
-# --- Corrigir e tratar a coluna Data ---
+# --- Tratamento da coluna 'Data' ---
 df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
-df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')  # Formatar data bonito: dd/mm/yyyy
+df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-# --- Converter colunas financeiras (se existirem) ---
+# --- Conversão de valores monetários e cotações ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
 for col in colunas_para_converter:
     if col in df.columns:
@@ -43,17 +53,28 @@ for col in colunas_para_converter:
             .astype(float)
         )
 
-# --- Consolida dados por Data ---
-df_consolidado = df.groupby('Data').agg({
+# --- Filtro por Status ---
+status_options = df['Status'].dropna().unique().tolist()
+status_selecionado = st.sidebar.multiselect(
+    "🎯 Filtrar por Status",
+    options=status_options,
+    default=status_options
+)
+
+# Filtrar os dados
+df_filtrado = df[df['Status'].isin(status_selecionado)]
+
+# --- Consolidação de dados ---
+df_consolidado = df_filtrado.groupby('Data').agg({
     'Valor apostado (R$)': 'sum',
     'Ganho (R$)': 'sum',
     'Lucro/Prejuízo (R$)': 'sum'
 }).reset_index()
 
-# --- Métricas Principais ---
-qtd_apostas = len(df)
-media_cotacao = df['Cotação'].mean() if 'Cotação' in df.columns else 0
-total_lucro = df['Lucro/Prejuízo (R$)'].sum()
+# --- Métricas ---
+qtd_apostas = len(df_filtrado)
+media_cotacao = df_filtrado['Cotação'].mean() if 'Cotação' in df_filtrado.columns else 0
+total_lucro = df_filtrado['Lucro/Prejuízo (R$)'].sum()
 
 col1, col2, col3 = st.columns(3)
 col1.metric("📅 Quantidade de Apostas", f"{qtd_apostas}")
@@ -87,7 +108,7 @@ st.plotly_chart(fig_lucro, use_container_width=True)
 
 st.markdown("---")
 
-# --- Tabela de Dados Final ---
+# --- Tabela de Apostas ---
 def colorir_lucro(val):
     if isinstance(val, str) and val.startswith('R$ '):
         val = float(val.replace('R$ ', '').replace(',', ''))
@@ -98,14 +119,13 @@ def colorir_lucro(val):
             return 'color: red; font-weight: bold;'
     return ''
 
-df_display = df.reset_index(drop=True).copy()
+df_display = df_filtrado.reset_index(drop=True).copy()
 
-# Formatar valores financeiros
+# Formatar valores
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
         df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
 
-# Formatar cotação com 2 casas
 if 'Cotação' in df_display.columns:
     df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
 
