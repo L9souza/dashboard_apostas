@@ -15,7 +15,16 @@ st.title('🎯 Dashboard de Apostas Esportivas')
 # --- Carregar dados diretamente do Google Sheets publicado ---
 url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_r9CxtMoWnWEkzzYwHAekTItzRrXjFvirDMNlokjlF82QzA8srPgDADnwRLef8WXh9XtFaIbwjRWE/pub?output=csv"
 df = pd.read_csv(url)
-df.columns = df.columns.str.strip()
+df.columns = df.columns.str.strip()  # Remove espaços nas bordas dos nomes das colunas
+
+# --- Mostrar as colunas carregadas para debug ---
+st.sidebar.subheader("🔍 Colunas encontradas:")
+st.sidebar.write(df.columns.tolist())
+
+# --- Conferir se existe a coluna 'Data' ---
+if "Data" not in df.columns:
+    st.error("🚨 A coluna 'Data' não foi encontrada! Corrija o Google Sheets para ter uma coluna chamada exatamente 'Data'.")
+    st.stop()
 
 # --- Tratamento de dados ---
 df = df.dropna(subset=["Data"])
