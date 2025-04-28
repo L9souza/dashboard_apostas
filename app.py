@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# Configurações da página
+# Configuração da página
 st.set_page_config(
     page_title="Dashboard de Apostas",
     page_icon="🎯",
@@ -16,35 +16,37 @@ st.title('🎯 Dashboard de Apostas Esportivas')
 @st.cache_data
 def carregar_dados():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_r9CxtMoWnWEkzzYwHAekTItzRrXjFvirDMNlokjlF82QzA8srPgDADnwRLef8WXh9XtFaIbwjRWE/pub?output=csv"
-    df = pd.read_csv(url)  # Sem skiprows
-    df.columns = df.columns.str.strip()  # Tira espaços dos nomes das colunas
+    df = pd.read_csv(url)  # Agora sem skiprows
+    df.columns = df.columns.str.strip()
     return df
 
-# --- Botão para atualizar ---
+# --- Botão para atualizar dados ---
 if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
 
 # Carrega os dados
 df = carregar_dados()
 
-# --- Checar coluna 'Data' ---
+# --- Verificar se 'Data' existe ---
 if "Data" not in df.columns:
     st.error("🚨 A coluna 'Data' não foi encontrada! Corrija o Google Sheets.")
     st.stop()
 
-# --- Tratamento da coluna 'Data' ---
+# --- Tratamento da coluna Data ---
 df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-# --- Converter valores monetários e cotação ---
+# --- Conversão de valores monetários e cotações ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
 for col in colunas_para_converter:
     if col in df.columns:
         df[col] = (
             df[col].astype(str)
-            .str.replace('.', '', regex=False)
-            .str.replace(',', '.', regex=False)
+            .str.replace('R$', '', regex=False)        # Remove símbolo de moeda
+            .str.replace('- ', '-', regex=False)        # Corrige espaço no sinal negativo
+            .str.replace('.', '', regex=False)          # Remove ponto (milhar)
+            .str.replace(',', '.', regex=False)         # Troca vírgula decimal por ponto
             .str.strip()
             .astype(float)
         )
@@ -57,7 +59,7 @@ status_selecionado = st.sidebar.multiselect(
     default=status_options
 )
 
-# Aplicar o filtro
+# Aplica o filtro
 df_filtrado = df[df['Status'].isin(status_selecionado)]
 
 # --- Consolidação dos dados ---
@@ -67,7 +69,7 @@ df_consolidado = df_filtrado.groupby('Data').agg({
     'Lucro/Prejuízo (R$)': 'sum'
 }).reset_index()
 
-# --- Métricas ---
+# --- Métricas principais ---
 qtd_apostas = len(df_filtrado)
 media_cotacao = df_filtrado['Cotação'].mean() if 'Cotação' in df_filtrado.columns else 0
 total_lucro = df_filtrado['Lucro/Prejuízo (R$)'].sum()
@@ -104,7 +106,7 @@ st.plotly_chart(fig_lucro, use_container_width=True)
 
 st.markdown("---")
 
-# --- Tabela de Dados ---
+# --- Tabela de Dados (com formatação condicional) ---
 def colorir_lucro(val):
     if isinstance(val, str) and val.startswith('R$ '):
         val = float(val.replace('R$ ', '').replace(',', ''))
@@ -117,7 +119,7 @@ def colorir_lucro(val):
 
 df_display = df_filtrado.reset_index(drop=True).copy()
 
-# Formatar valores
+# Formatar valores para exibição
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
         df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
