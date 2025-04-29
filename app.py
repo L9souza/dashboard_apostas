@@ -16,7 +16,7 @@ st.title('🎯 Dashboard de Apostas Esportivas')
 @st.cache_data
 def carregar_dados():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_r9CxtMoWnWEkzzYwHAekTItzRrXjFvirDMNlokjlF82QzA8srPgDADnwRLef8WXh9XtFaIbwjRWE/pub?output=csv"
-    df = pd.read_csv(url)  # Agora sem skiprows
+    df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
     return df
 
@@ -43,10 +43,10 @@ for col in colunas_para_converter:
     if col in df.columns:
         df[col] = (
             df[col].astype(str)
-            .str.replace('R$', '', regex=False)        # Remove símbolo de moeda
-            .str.replace('- ', '-', regex=False)        # Corrige espaço no sinal negativo
-            .str.replace('.', '', regex=False)          # Remove ponto (milhar)
-            .str.replace(',', '.', regex=False)         # Troca vírgula decimal por ponto
+            .str.replace('R$', '', regex=False)
+            .str.replace(r'-\s+', '-', regex=True)    # Corrige espaço após sinal negativo
+            .str.replace('.', '', regex=False)
+            .str.replace(',', '.', regex=False)
             .str.strip()
             .astype(float)
         )
