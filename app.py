@@ -20,12 +20,13 @@ def carregar_dados():
     df.columns = df.columns.str.strip()
     return df
 
-# Botão para atualizar cache
-if st.button("🔄 Atualizar Dados"):
+# --- Botão para atualizar dados ---
+atualizar = st.button("🔄 Atualizar Dados")
+if atualizar:
     st.cache_data.clear()
-
-# Carrega os dados
-df = carregar_dados()
+    st.experimental_rerun()
+else:
+    df = carregar_dados()
 
 # --- Verifica se coluna 'Data' existe ---
 if "Data" not in df.columns:
@@ -37,21 +38,26 @@ df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-# --- Conversão de colunas numéricas com tratamento extra
+# --- Conversão de colunas numéricas com limpeza extra ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
 for col in colunas_para_converter:
     if col in df.columns:
         df[col] = (
             df[col].astype(str)
             .str.replace('R$', '', regex=False)
-            .str.replace('- ', '-', regex=True)
-            .str.replace('.', '', regex=False)
-            .str.replace(',', '.', regex=False)
+            .str.replace('−', '-', regex=False)  # Corrige símbolo especial
+            .str.replace('–', '-', regex=False)  # Corrige símbolo especial
+            .str.replace('- ', '-', regex=False)  # Corrige espaço depois do -
+            .str.replace('.', '', regex=False)    # Remove pontos de milhar
+            .str.replace(',', '.', regex=False)   # Troca vírgula por ponto decimal
             .str.strip()
-            .astype(float)
         )
+        df[col] = pd.to_numeric(df[col], errors='coerce')  # Converte com segurança
 
-# --- Usa todo o DataFrame sem filtros ---
+# Remove linhas inválidas
+df = df.dropna(subset=colunas_para_converter)
+
+# --- Usa o dataframe completo (sem filtro de Status) ---
 df_filtrado = df.copy()
 
 # --- Consolidação por Data ---
@@ -73,7 +79,7 @@ col3.metric("📈 Lucro/Prejuízo", f"R$ {total_lucro:,.2f}", delta=f"{total_luc
 
 st.markdown("---")
 
-# --- Gráfico de Lucro/Prejuízo por Data ---
+# --- Gráfico de Lucro/Prejuízo ---
 fig_lucro = go.Figure()
 fig_lucro.add_trace(go.Bar(
     x=df_consolidado['Data'],
@@ -83,7 +89,6 @@ fig_lucro.add_trace(go.Bar(
     textposition='inside',
     width=0.6
 ))
-
 fig_lucro.update_layout(
     title="Lucro/Prejuízo Consolidado por Data",
     xaxis_title='Data',
@@ -93,12 +98,11 @@ fig_lucro.update_layout(
     xaxis_tickangle=0,
     hovermode="x unified"
 )
-
 st.plotly_chart(fig_lucro, use_container_width=True)
 
 st.markdown("---")
 
-# --- Tabela com dados formatados ---
+# --- Tabela formatada ---
 def colorir_lucro(val):
     if isinstance(val, str) and val.startswith('R$ '):
         val = float(val.replace('R$ ', '').replace(',', ''))
@@ -109,7 +113,6 @@ def colorir_lucro(val):
 
 df_display = df_filtrado.reset_index(drop=True).copy()
 
-# Formatação visual
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
         df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
@@ -118,6 +121,5 @@ if 'Cotação' in df_display.columns:
     df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
 
 styled_df = df_display.style.applymap(colorir_lucro, subset=['Lucro/Prejuízo (R$)'])
-
 st.subheader("📋 Todas as Apostas")
 st.dataframe(styled_df, use_container_width=True, height=450, hide_index=True)
