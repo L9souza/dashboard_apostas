@@ -20,14 +20,14 @@ def carregar_dados():
     df.columns = df.columns.str.strip()
     return df
 
-# --- Botão para atualizar dados ---
+# Botão para atualizar cache
 if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
 
 # Carrega os dados
 df = carregar_dados()
 
-# --- Verificar se 'Data' existe ---
+# --- Verifica se coluna 'Data' existe ---
 if "Data" not in df.columns:
     st.error("🚨 A coluna 'Data' não foi encontrada! Corrija o Google Sheets.")
     st.stop()
@@ -37,32 +37,24 @@ df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-# --- Conversão de valores monetários e cotações ---
+# --- Conversão de colunas numéricas com tratamento extra
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
 for col in colunas_para_converter:
     if col in df.columns:
         df[col] = (
             df[col].astype(str)
             .str.replace('R$', '', regex=False)
-            .str.replace(r'-\s+', '-', regex=True)    # Corrige espaço após sinal negativo
+            .str.replace('- ', '-', regex=True)
             .str.replace('.', '', regex=False)
             .str.replace(',', '.', regex=False)
             .str.strip()
             .astype(float)
         )
 
-# --- Filtro de Status ---
-status_options = df['Status'].dropna().unique().tolist()
-status_selecionado = st.sidebar.multiselect(
-    "🎯 Filtrar por Status",
-    options=status_options,
-    default=status_options
-)
+# --- Usa todo o DataFrame sem filtros ---
+df_filtrado = df.copy()
 
-# Aplica o filtro
-df_filtrado = df[df['Status'].isin(status_selecionado)]
-
-# --- Consolidação dos dados ---
+# --- Consolidação por Data ---
 df_consolidado = df_filtrado.groupby('Data').agg({
     'Valor apostado (R$)': 'sum',
     'Ganho (R$)': 'sum',
@@ -81,7 +73,7 @@ col3.metric("📈 Lucro/Prejuízo", f"R$ {total_lucro:,.2f}", delta=f"{total_luc
 
 st.markdown("---")
 
-# --- Gráfico de Lucro/Prejuízo Consolidado ---
+# --- Gráfico de Lucro/Prejuízo por Data ---
 fig_lucro = go.Figure()
 fig_lucro.add_trace(go.Bar(
     x=df_consolidado['Data'],
@@ -106,20 +98,18 @@ st.plotly_chart(fig_lucro, use_container_width=True)
 
 st.markdown("---")
 
-# --- Tabela de Dados (com formatação condicional) ---
+# --- Tabela com dados formatados ---
 def colorir_lucro(val):
     if isinstance(val, str) and val.startswith('R$ '):
         val = float(val.replace('R$ ', '').replace(',', ''))
     if isinstance(val, (int, float)):
-        if val > 0:
-            return 'color: green; font-weight: bold;'
-        elif val < 0:
-            return 'color: red; font-weight: bold;'
+        if val > 0: return 'color: green; font-weight: bold;'
+        elif val < 0: return 'color: red; font-weight: bold;'
     return ''
 
 df_display = df_filtrado.reset_index(drop=True).copy()
 
-# Formatar valores para exibição
+# Formatação visual
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
         df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
