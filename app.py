@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -16,7 +17,7 @@ hide_table_row_index = """
     thead tr th:first-child {display:none}
     tbody th {display:none}
     </style>
-    """
+"""
 st.markdown(hide_table_row_index, unsafe_allow_html=True)
 
 st.title('🎯 Dashboard de Apostas Esportivas')
@@ -40,7 +41,7 @@ else:
 # --- Tratamento dos dados ---
 df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
-df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
+df['Data_formatada'] = df['Data'].dt.strftime('%d/%m/%Y')  # só para exibição
 
 # --- Conversão de colunas numéricas ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
@@ -67,7 +68,10 @@ df_consolidado = df.groupby('Data').agg({
     'Lucro/Prejuízo (R$)': 'sum'
 }).reset_index()
 
+df_consolidado = df_consolidado.sort_values('Data')
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
+df_consolidado['Data_formatada'] = df_consolidado['Data'].dt.strftime('%d/%m/%Y')
+
 BANCA_INICIAL = 1250
 if not df_consolidado.empty:
     ultimo_lucro = df_consolidado['Lucro Acumulado'].iloc[-1]
@@ -77,28 +81,22 @@ else:
 banca_atual = BANCA_INICIAL + ultimo_lucro
 variacao_banca = banca_atual - BANCA_INICIAL
 
-
 # --- Métricas principais ---
 qtd_apostas = len(df)
 media_cotacao = df['Cotação'].mean() if 'Cotação' in df.columns else 0
-
 lucro_total = df['Lucro/Prejuízo (R$)'].sum()
 
 col1, col2, col3, col4, col5 = st.columns(5)
 
 col1.metric("📅 Total de Apostas", f"{qtd_apostas}")
-
 col2.metric("💰 Banca Inicial", f"R$ {BANCA_INICIAL:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-
 col3.metric("📊 Cotação Média", f"{media_cotacao:.1f}")
-
 col4.metric(
     "🏦 Banca Atual",
     f"R$ {banca_atual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
     delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-    delta_color="normal"  # Streamlit já usa cor automática com base no valor
+    delta_color="normal"
 )
-
 col5.metric(
     "📈 Lucro/Prejuízo Total",
     f"R$ {lucro_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
@@ -111,7 +109,7 @@ st.markdown("---")
 # --- Gráfico de Lucro/Prejuízo por Data ---
 fig_lucro = go.Figure()
 fig_lucro.add_trace(go.Bar(
-    x=df_consolidado['Data'],
+    x=df_consolidado['Data_formatada'],
     y=df_consolidado['Lucro/Prejuízo (R$)'],
     marker_color=['green' if x > 0 else 'red' for x in df_consolidado['Lucro/Prejuízo (R$)']],
     text=[f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') for x in df_consolidado['Lucro/Prejuízo (R$)']],
@@ -133,55 +131,44 @@ st.markdown("---")
 # --- Funções de estilização ---
 def colorir_valor(val):
     if isinstance(val, str):
-        # Remove formatação monetária para análise
         num_str = val.replace('R$', '').replace('RS', '').strip()
         num_str = num_str.replace('.', '').replace(',', '.')
         try:
             valor = float(num_str)
             if valor > 0:
-                return 'color: #00AA00; font-weight: bold;'  # Verde
+                return 'color: #00AA00; font-weight: bold;'
             elif valor < 0:
-                return 'color: #FF0000; font-weight: bold;'  # Vermelho
-            return 'color: white; font-weight: normal;'      # Zero
+                return 'color: #FF0000; font-weight: bold;'
+            return 'color: white; font-weight: normal;'
         except:
             return ''
     return ''
 
 def colorir_status(val):
     if val == "Green":
-        return 'color: #00AA00; font-weight: bold;'  # Verde
+        return 'color: #00AA00; font-weight: bold;'
     elif val == "Red":
-        return 'color: #FF0000; font-weight: bold;'  # Vermelho
-    return 'color: white; font-weight: normal;'      # Outros = branco
+        return 'color: #FF0000; font-weight: bold;'
+    return 'color: white; font-weight: normal;'
 
 # --- Preparar DataFrame para exibição ---
 df_display = df.copy()
-
-# Formatar colunas monetárias (com separador brasileiro)
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
         df_display[col] = df_display[col].apply(
             lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
         )
-
-# Formatar cotação com 1 casa decimal
 if 'Cotação' in df_display.columns:
     df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.1f}")
 
-# --- Aplicar estilização ---
 colunas_existentes = df_display.columns.tolist()
 styled_df = df_display.style
-
-# Estilizar colunas monetárias
 for col in ['Lucro/Prejuízo (R$)', 'Ganho (R$)']:
     if col in colunas_existentes:
         styled_df = styled_df.applymap(colorir_valor, subset=[col])
-
-# Estilizar coluna de Status
 if 'Status' in colunas_existentes:
     styled_df = styled_df.applymap(colorir_status, subset=['Status'])
 
-# --- Exibição final ---
 st.dataframe(
     styled_df,
     use_container_width=True,
