@@ -69,21 +69,41 @@ df_consolidado = df.groupby('Data').agg({
 
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
 BANCA_INICIAL = 1250
-banca_atual = BANCA_INICIAL + df_consolidado['Lucro Acumulado'].iloc[-1]
+if not df_consolidado.empty:
+    ultimo_lucro = df_consolidado['Lucro Acumulado'].iloc[-1]
+else:
+    ultimo_lucro = 0
+
+banca_atual = BANCA_INICIAL + ultimo_lucro
 variacao_banca = banca_atual - BANCA_INICIAL
+
 
 # --- Métricas principais ---
 qtd_apostas = len(df)
 media_cotacao = df['Cotação'].mean() if 'Cotação' in df.columns else 0
 
-col1, col2, col3, col4 = st.columns(4)
+lucro_total = df['Lucro/Prejuízo (R$)'].sum()
+
+col1, col2, col3, col4, col5 = st.columns(5)
+
 col1.metric("📅 Total de Apostas", f"{qtd_apostas}")
+
 col2.metric("💰 Banca Inicial", f"R$ {BANCA_INICIAL:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+
 col3.metric("📊 Cotação Média", f"{media_cotacao:.1f}")
+
 col4.metric(
     "🏦 Banca Atual",
     f"R$ {banca_atual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-    delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+    delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+    delta_color="normal"  # Streamlit já usa cor automática com base no valor
+)
+
+col5.metric(
+    "📈 Lucro/Prejuízo Total",
+    f"R$ {lucro_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
+    delta=None,
+    delta_color="off"
 )
 
 st.markdown("---")
