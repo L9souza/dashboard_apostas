@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -126,7 +125,53 @@ fig_lucro.update_layout(
 )
 st.plotly_chart(fig_lucro, use_container_width=True)
 
+# --- PAINEL DE ESTATÍSTICAS ---
 st.markdown("---")
+with st.container():
+    if st.button("📈 Ver Estatísticas Detalhadas"):
+        total_apostas = len(df)
+        vencedoras = len(df[df['Status'] == 'Green'])
+        perdedoras = len(df[df['Status'] == 'Red'])
+        reembolsadas = len(df[df['Status'].str.lower().str.contains('anul', na=False)])
+        em_curso = len(df[df['Status'].str.lower().str.contains('em curso', na=False)])
+        valor_medio = df['Valor apostado (R$)'].mean()
+        maior_lucro = df['Lucro/Prejuízo (R$)'].max()
+        maior_red = df['Lucro/Prejuízo (R$)'].min()
+        maior_cotacao = df[df['Status'] == 'Green']['Cotação'].max()
+        taxa_sucesso = (vencedoras / (vencedoras + perdedoras)) * 100 if (vencedoras + perdedoras) > 0 else 0
+
+        # Série máxima de vitórias/derrotas
+        max_vit = max_der = vit = der = 0
+        for s in df['Status']:
+            if s == 'Green':
+                vit += 1
+                der = 0
+            elif s == 'Red':
+                der += 1
+                vit = 0
+            else:
+                vit = der = 0
+            max_vit = max(max_vit, vit)
+            max_der = max(max_der, der)
+
+        st.markdown("### 📊 Estatísticas de Apostas")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.write(f"🔢 Total de Apostas: **{total_apostas}**")
+            st.write(f"✅ Apostas Vencedoras: **{vencedoras}**")
+            st.write(f"❌ Apostas Perdedoras: **{perdedoras}**")
+            st.write(f"♻️ Apostas Reembolsadas: **{reembolsadas}**")
+            st.write(f"⏳ Apostas em Curso: **{em_curso}**")
+            st.write(f"📈 Taxa de Sucesso: **{taxa_sucesso:.2f}%**")
+
+        with col2:
+            st.write(f"💵 Valor Médio Apostado: **R$ {valor_medio:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.write(f"🔥 Série Máxima de Vitórias: **{max_vit}**")
+            st.write(f"💀 Série Máxima de Derrotas: **{max_der}**")
+            st.write(f"🏆 Maior Lucro em Aposta: **R$ {maior_lucro:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.write(f"🩸 Maior Prejuízo em Aposta: **R$ {maior_red:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.write(f"📌 Maior Cotação Ganha: **{maior_cotacao:.2f}**")
 
 # --- Funções de estilização ---
 def colorir_valor(val):
@@ -172,6 +217,6 @@ if 'Status' in colunas_existentes:
 st.dataframe(
     styled_df,
     use_container_width=True,
-    height=450,
+    height=450,        
     hide_index=True
 )
