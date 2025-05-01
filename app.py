@@ -40,7 +40,7 @@ else:
 # --- Tratamento dos dados ---
 df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
-df['Data_formatada'] = df['Data'].dt.strftime('%d/%m/%Y')  # só para exibição
+df['Data_formatada'] = df['Data'].dt.strftime('%d/%m/%Y')
 
 # --- Conversão de colunas numéricas ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
@@ -60,7 +60,7 @@ for col in colunas_para_converter:
 
 df = df.dropna(subset=colunas_para_converter, how='all')
 
-# --- Cálculos da banca ---
+# --- Cálculo da banca ---
 df_consolidado = df.groupby('Data').agg({
     'Valor apostado (R$)': 'sum',
     'Ganho (R$)': 'sum',
@@ -94,7 +94,7 @@ col4.metric(
     "🏦 Banca Atual",
     f"R$ {banca_atual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
     delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-    delta_color="normal"
+    delta_color="inverse" if variacao_banca < 0 else "normal"
 )
 col5.metric(
     "📈 Lucro/Prejuízo Total",
@@ -125,7 +125,7 @@ fig_lucro.update_layout(
 )
 st.plotly_chart(fig_lucro, use_container_width=True)
 
-# --- PAINEL DE ESTATÍSTICAS ---
+# --- Painel de Estatísticas ---
 st.markdown("---")
 with st.container():
     if st.button("📈 Ver Estatísticas Detalhadas"):
@@ -138,7 +138,12 @@ with st.container():
         maior_lucro = df['Lucro/Prejuízo (R$)'].max()
         maior_red = df['Lucro/Prejuízo (R$)'].min()
         maior_cotacao = df[df['Status'] == 'Green']['Cotação'].max()
+
+        # Taxas de sucesso
         taxa_sucesso = (vencedoras / (vencedoras + perdedoras)) * 100 if (vencedoras + perdedoras) > 0 else 0
+        valor_green = df[df['Status'] == 'Green']['Valor apostado (R$)'].sum()
+        valor_red = df[df['Status'] == 'Red']['Valor apostado (R$)'].sum()
+        taxa_sucesso_financeira = (valor_green / (valor_green + valor_red)) * 100 if (valor_green + valor_red) > 0 else 0
 
         # Série máxima de vitórias/derrotas
         max_vit = max_der = vit = der = 0
@@ -163,7 +168,8 @@ with st.container():
             st.write(f"❌ Apostas Perdedoras: **{perdedoras}**")
             st.write(f"♻️ Apostas Reembolsadas: **{reembolsadas}**")
             st.write(f"⏳ Apostas em Curso: **{em_curso}**")
-            st.write(f"📈 Taxa de Sucesso: **{taxa_sucesso:.2f}%**")
+            st.write(f"📈 Taxa de Sucesso (Qtd): **{taxa_sucesso:.2f}%**")
+            st.write(f"💸 Taxa de Sucesso (Valor): **{taxa_sucesso_financeira:.2f}%**")
 
         with col2:
             st.write(f"💵 Valor Médio Apostado: **R$ {valor_medio:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -196,7 +202,7 @@ def colorir_status(val):
         return 'color: #FF0000; font-weight: bold;'
     return 'color: white; font-weight: normal;'
 
-# --- Preparar DataFrame para exibição ---
+# --- Tabela final com estilização ---
 df_display = df.copy()
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
@@ -217,6 +223,6 @@ if 'Status' in colunas_existentes:
 st.dataframe(
     styled_df,
     use_container_width=True,
-    height=450,        
+    height=450,
     hide_index=True
 )
