@@ -30,8 +30,9 @@ def carregar_dados():
 if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
     st.rerun()
-else:
-    df = carregar_dados()
+
+# Fora do if, sempre define df
+df = carregar_dados()
 
 # --- Tratamento de colunas e datas ---
 df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
