@@ -50,7 +50,8 @@ for col in colunas_para_converter:
         .str.strip())
     df[col] = pd.to_numeric(df[col], errors='coerce')
 
-df['Status'] = df_finalizadas['Status'].fillna('').str.strip().str.lower()
+df['Status'] = df['Status'].fillna('').str.strip().str.lower()
+df_finalizadas = df[df['Status'].isin(['green', 'red', 'anulado'])].copy()
 df_finalizadas = df[df['Status'].isin(['green', 'red', 'anulado'])].copy()
 
 df_consolidado = df_finalizadas.groupby('Data').agg({
