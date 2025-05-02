@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# Configuração da página (remover barra lateral)
+# --- Configuração da página ---
 st.set_page_config(
     page_title="Dashboard de Apostas",
     page_icon="🎯",
@@ -10,14 +10,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# CSS para esconder o índice e melhorar a tabela
-hide_table_row_index = """
+# --- CSS para esconder índice da tabela ---
+st.markdown("""
     <style>
     thead tr th:first-child {display:none}
     tbody th {display:none}
     </style>
-"""
-st.markdown(hide_table_row_index, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 st.title('🎯 Dashboard de Apostas Esportivas')
 
@@ -29,20 +28,18 @@ def carregar_dados():
     df.columns = df.columns.str.strip()
     return df
 
-# --- Botão para atualizar dados ---
-atualizar = st.button("🔄 Atualizar Dados")
-if atualizar:
+# --- Atualizar dados ---
+if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
     st.rerun()
 else:
     df = carregar_dados()
 
-# --- Tratamento dos dados ---
+# --- Processamento de datas e conversões ---
 df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
-df['Data_formatada'] = df['Data'].dt.strftime('%d/%m/%Y')
+df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')  # <-- Só a data, sem horário
 
-# --- Conversão de colunas numéricas ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
 for col in colunas_para_converter:
     if col in df.columns:
@@ -60,7 +57,7 @@ for col in colunas_para_converter:
 
 df = df.dropna(subset=colunas_para_converter, how='all')
 
-# --- Cálculo da banca ---
+# --- Cálculo da banca consolidada ---
 df_consolidado = df.groupby('Data').agg({
     'Valor apostado (R$)': 'sum',
     'Ganho (R$)': 'sum',
@@ -69,46 +66,26 @@ df_consolidado = df.groupby('Data').agg({
 
 df_consolidado = df_consolidado.sort_values('Data')
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
-df_consolidado['Data_formatada'] = df_consolidado['Data'].dt.strftime('%d/%m/%Y')
 
 BANCA_INICIAL = 1250
-if not df_consolidado.empty:
-    ultimo_lucro = df_consolidado['Lucro Acumulado'].iloc[-1]
-else:
-    ultimo_lucro = 0
-
+ultimo_lucro = df_consolidado['Lucro Acumulado'].iloc[-1] if not df_consolidado.empty else 0
 banca_atual = BANCA_INICIAL + ultimo_lucro
 variacao_banca = banca_atual - BANCA_INICIAL
 
 # --- Métricas principais ---
-qtd_apostas = len(df)
-media_cotacao = df['Cotação'].mean() if 'Cotação' in df.columns else 0
-lucro_total = df['Lucro/Prejuízo (R$)'].sum()
-
 col1, col2, col3, col4, col5 = st.columns(5)
-
-col1.metric("📅 Total de Apostas", f"{qtd_apostas}")
+col1.metric("📅 Total de Apostas", f"{len(df)}")
 col2.metric("💰 Banca Inicial", f"R$ {BANCA_INICIAL:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-col3.metric("📊 Cotação Média", f"{media_cotacao:.1f}")
-col4.metric(
-    "🏦 Banca Atual",
-    f"R$ {banca_atual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-    delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-    delta_color="inverse" if variacao_banca < 0 else "normal"
-)
-col5.metric(
-    "📈 Lucro/Prejuízo Total",
-    f"R$ {lucro_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'),
-    delta=None,
-    delta_color="off"
-)
+col3.metric("📊 Cotação Média", f"{df['Cotação'].mean():.1f}")
+col4.metric("🏦 Banca Atual", f"R$ {banca_atual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'), delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'), delta_color="inverse" if variacao_banca < 0 else "normal")
+col5.metric("📈 Lucro/Prejuízo Total", f"R$ {df['Lucro/Prejuízo (R$)'].sum():,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
 st.markdown("---")
 
-# --- Gráfico de Lucro/Prejuízo por Data ---
+# --- Gráfico de lucro por data ---
 fig_lucro = go.Figure()
 fig_lucro.add_trace(go.Bar(
-    x=df_consolidado['Data_formatada'],
+    x=df_consolidado['Data'],
     y=df_consolidado['Lucro/Prejuízo (R$)'],
     marker_color=['green' if x > 0 else 'red' for x in df_consolidado['Lucro/Prejuízo (R$)']],
     text=[f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.') for x in df_consolidado['Lucro/Prejuízo (R$)']],
@@ -125,104 +102,84 @@ fig_lucro.update_layout(
 )
 st.plotly_chart(fig_lucro, use_container_width=True)
 
-# --- Painel de Estatísticas ---
+# --- Estatísticas detalhadas ---
 st.markdown("---")
-with st.container():
-    if st.button("📈 Ver Estatísticas Detalhadas"):
-        total_apostas = len(df)
-        vencedoras = len(df[df['Status'] == 'Green'])
-        perdedoras = len(df[df['Status'] == 'Red'])
-        reembolsadas = len(df[df['Status'].str.lower().str.contains('anul', na=False)])
-        em_curso = len(df[df['Status'].str.lower().str.contains('em curso', na=False)])
-        valor_medio = df['Valor apostado (R$)'].mean()
-        maior_lucro = df['Lucro/Prejuízo (R$)'].max()
-        maior_red = df['Lucro/Prejuízo (R$)'].min()
-        maior_cotacao = df[df['Status'] == 'Green']['Cotação'].max()
+if st.button("📈 Ver Estatísticas Detalhadas"):
+    status_col = df['Status'].fillna('').str.lower().str.strip()
+    total = len(df)
+    greens = (status_col == 'green').sum()
+    reds = (status_col == 'red').sum()
+    anuladas = status_col.str.contains('anul').sum()
+    em_curso = status_col.str.contains('em curso').sum()
 
-        # Taxas de sucesso
-        taxa_sucesso = (vencedoras / (vencedoras + perdedoras)) * 100 if (vencedoras + perdedoras) > 0 else 0
-        valor_green = df[df['Status'] == 'Green']['Valor apostado (R$)'].sum()
-        valor_red = df[df['Status'] == 'Red']['Valor apostado (R$)'].sum()
-        taxa_sucesso_financeira = (valor_green / (valor_green + valor_red)) * 100 if (valor_green + valor_red) > 0 else 0
+    taxa_sucesso = (greens / (greens + reds)) * 100 if (greens + reds) > 0 else 0
+    valor_green = df.loc[status_col == 'green', 'Valor apostado (R$)'].sum()
+    valor_red = df.loc[status_col == 'red', 'Valor apostado (R$)'].sum()
+    taxa_valor = (valor_green / (valor_green + valor_red)) * 100 if (valor_green + valor_red) > 0 else 0
 
-        # Série máxima de vitórias/derrotas
-        max_vit = max_der = vit = der = 0
-        for s in df['Status']:
-            if s == 'Green':
-                vit += 1
-                der = 0
-            elif s == 'Red':
-                der += 1
-                vit = 0
-            else:
-                vit = der = 0
-            max_vit = max(max_vit, vit)
-            max_der = max(max_der, der)
+    maior_lucro = df['Lucro/Prejuízo (R$)'].max()
+    maior_red = df['Lucro/Prejuízo (R$)'].min()
+    maior_cotacao = df.loc[status_col == 'green', 'Cotação'].max()
+    valor_medio = df['Valor apostado (R$)'].mean()
 
-        st.markdown("### 📊 Estatísticas de Apostas")
-        col1, col2 = st.columns(2)
+    vit = der = max_vit = max_der = 0
+    for s in status_col:
+        if s == 'green':
+            vit += 1
+            der = 0
+        elif s == 'red':
+            der += 1
+            vit = 0
+        else:
+            vit = der = 0
+        max_vit = max(max_vit, vit)
+        max_der = max(max_der, der)
 
-        with col1:
-            st.write(f"🔢 Total de Apostas: **{total_apostas}**")
-            st.write(f"✅ Apostas Vencedoras: **{vencedoras}**")
-            st.write(f"❌ Apostas Perdedoras: **{perdedoras}**")
-            st.write(f"♻️ Apostas Reembolsadas: **{reembolsadas}**")
-            st.write(f"⏳ Apostas em Curso: **{em_curso}**")
-            st.write(f"📈 Taxa de Sucesso (Qtd): **{taxa_sucesso:.2f}%**")
-            st.write(f"💸 Taxa de Sucesso (Valor): **{taxa_sucesso_financeira:.2f}%**")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write(f"🔢 Total de Apostas: **{total}**")
+        st.write(f"✅ Apostas Vencedoras: **{greens}**")
+        st.write(f"❌ Apostas Perdedoras: **{reds}**")
+        st.write(f"♻️ Apostas Reembolsadas: **{anuladas}**")
+        st.write(f"⏳ Apostas em Curso: **{em_curso}**")
+        st.write(f"📈 Taxa de Sucesso (Qtd): **{taxa_sucesso:.2f}%**")
+        st.write(f"💸 Taxa de Sucesso (Valor): **{taxa_valor:.2f}%**")
+    with col2:
+        st.write(f"💵 Valor Médio Apostado: **R$ {valor_medio:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.write(f"🔥 Série Máxima de Vitórias: **{max_vit}**")
+        st.write(f"💀 Série Máxima de Derrotas: **{max_der}**")
+        st.write(f"🏆 Maior Lucro em Aposta: **R$ {maior_lucro:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.write(f"🩸 Maior Prejuízo em Aposta: **R$ {maior_red:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.write(f"📌 Maior Cotação Ganha: **{maior_cotacao:.2f}**")
 
-        with col2:
-            st.write(f"💵 Valor Médio Apostado: **R$ {valor_medio:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
-            st.write(f"🔥 Série Máxima de Vitórias: **{max_vit}**")
-            st.write(f"💀 Série Máxima de Derrotas: **{max_der}**")
-            st.write(f"🏆 Maior Lucro em Aposta: **R$ {maior_lucro:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
-            st.write(f"🩸 Maior Prejuízo em Aposta: **R$ {maior_red:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
-            st.write(f"📌 Maior Cotação Ganha: **{maior_cotacao:.2f}**")
-
-# --- Funções de estilização ---
+# --- Estilização da tabela ---
 def colorir_valor(val):
     if isinstance(val, str):
-        num_str = val.replace('R$', '').replace('RS', '').strip()
-        num_str = num_str.replace('.', '').replace(',', '.')
+        val = val.replace('R$', '').replace('RS', '').strip().replace('.', '').replace(',', '.')
         try:
-            valor = float(num_str)
-            if valor > 0:
-                return 'color: #00AA00; font-weight: bold;'
-            elif valor < 0:
-                return 'color: #FF0000; font-weight: bold;'
-            return 'color: white; font-weight: normal;'
-        except:
-            return ''
+            val = float(val)
+            if val > 0: return 'color: #00AA00; font-weight: bold;'
+            if val < 0: return 'color: #FF0000; font-weight: bold;'
+            return 'color: white;'
+        except: return ''
     return ''
 
 def colorir_status(val):
-    if val == "Green":
-        return 'color: #00AA00; font-weight: bold;'
-    elif val == "Red":
-        return 'color: #FF0000; font-weight: bold;'
-    return 'color: white; font-weight: normal;'
+    if val == "Green": return 'color: #00AA00; font-weight: bold;'
+    if val == "Red": return 'color: #FF0000; font-weight: bold;'
+    return 'color: white;'
 
-# --- Tabela final com estilização ---
 df_display = df.copy()
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
-        df_display[col] = df_display[col].apply(
-            lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-        )
+        df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 if 'Cotação' in df_display.columns:
-    df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.1f}")
+    df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
 
-colunas_existentes = df_display.columns.tolist()
 styled_df = df_display.style
 for col in ['Lucro/Prejuízo (R$)', 'Ganho (R$)']:
-    if col in colunas_existentes:
-        styled_df = styled_df.applymap(colorir_valor, subset=[col])
-if 'Status' in colunas_existentes:
+    styled_df = styled_df.applymap(colorir_valor, subset=[col])
+if 'Status' in df_display.columns:
     styled_df = styled_df.applymap(colorir_status, subset=['Status'])
 
-st.dataframe(
-    styled_df,
-    use_container_width=True,
-    height=450,
-    hide_index=True
-)
+st.dataframe(styled_df, use_container_width=True, hide_index=True, height=450)
