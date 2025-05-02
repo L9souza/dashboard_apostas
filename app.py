@@ -170,9 +170,22 @@ def colorir_status(val):
     return 'color: white;'
 
 df_display = df.copy()
-for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
-    if col in df_display.columns:
-        df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+def formatar_moeda_condicional(valor, status):
+    if pd.isna(status) or status.lower() not in ['green', 'red', 'anulado']:
+        return '—'
+    if pd.isna(valor):
+        return '—'
+    return f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+
+# Aplica formatação condicional
+if 'Status' in df_display.columns:
+    df_display['Lucro/Prejuízo (R$)'] = df.apply(lambda row: formatar_moeda_condicional(row['Lucro/Prejuízo (R$)'], row['Status']), axis=1)
+    df_display['Ganho (R$)'] = df.apply(lambda row: formatar_moeda_condicional(row['Ganho (R$)'], row['Status']), axis=1)
+
+# Valor apostado sempre aparece
+if 'Valor apostado (R$)' in df_display.columns:
+    df_display['Valor apostado (R$)'] = df_display['Valor apostado (R$)'].apply(lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+
 if 'Cotação' in df_display.columns:
     df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
 
