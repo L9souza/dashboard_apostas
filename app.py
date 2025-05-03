@@ -48,12 +48,18 @@ for col in ['Cotação', 'Valor apostado (R$)']:
                             .str.replace('.', '', regex=False)
                             .str.replace(',', '.', regex=False).str.strip(), errors='coerce')
 
+# ✅ AQUI ESTÁ A LÓGICA FINAL
 df['Ganho (R$)'] = df.apply(lambda row:
     row['Valor apostado (R$)'] * row['Cotação'] if row['Status'] == 'green'
+    else -row['Valor apostado (R$)'] if row['Status'] == 'red'
     else row['Valor apostado (R$)'] if row['Status'] == 'anulado'
     else 0, axis=1)
 
-df['Lucro/Prejuízo (R$)'] = df['Ganho (R$)'] - df['Valor apostado (R$)']
+df['Lucro/Prejuízo (R$)'] = df.apply(lambda row:
+    (row['Valor apostado (R$)'] * row['Cotação']) - row['Valor apostado (R$)'] if row['Status'] == 'green'
+    else -row['Valor apostado (R$)'] if row['Status'] == 'red'
+    else 0 if row['Status'] == 'anulado'
+    else 0, axis=1)
 
 status_validos = ['green', 'red', 'anulado']
 df_finalizadas = df[df['Status'].isin(status_validos)].copy()
@@ -117,30 +123,30 @@ with st.expander("📊 Estatísticas Detalhadas"):
     st.markdown(f"❌ **Reds:** {reds} ({red_pct:.1f}%)")
     st.markdown(f"⚪ **Anuladas:** {anuladas} ({anulado_pct:.1f}%)")
 
-# ----------- TABELA FINAL COM ESTILO --------------
 df_display = df.copy().iloc[::-1].reset_index(drop=True)
+df_display['Status'] = df_display['Status'].str.upper()
 
 def estilo_linha(row):
     estilo = []
-    status = row['Status']
     for col in df_display.columns:
         if col == 'Status':
-            if status == 'green':
-                estilo.append('background-color:#d4f8d4; color:#006400; font-weight:bold;')
-            elif status == 'red':
-                estilo.append('background-color:#f8d4d4; color:#8B0000; font-weight:bold;')
-            elif status == 'anulado':
-                estilo.append('background-color:#eaeaea; color:#444444; font-weight:bold;')
+            status = row['Status']
+            if status == "GREEN":
+                estilo.append('color: #00AA00; font-weight: bold; text-transform: uppercase;')
+            elif status == "RED":
+                estilo.append('color: #FF0000; font-weight: bold; text-transform: uppercase;')
+            elif status == "ANULADO":
+                estilo.append('color: #999999; font-weight: bold; text-transform: uppercase;')
             else:
                 estilo.append('')
-        elif col in ['Lucro/Prejuízo (R$)', 'Ganho (R$)']:
+        elif col == 'Lucro/Prejuízo (R$)' or col == 'Ganho (R$)':
             valor = row[col]
             if valor > 0:
                 estilo.append('color: #00AA00; font-weight: bold;')
             elif valor < 0:
                 estilo.append('color: #FF0000; font-weight: bold;')
             else:
-                estilo.append('')
+                estilo.append('color: white;')
         else:
             estilo.append('')
     return estilo
