@@ -38,21 +38,20 @@ df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-# --- NOVA CONVERSÃO MAIS ROBUSTA ---
+# --- Conversão robusta de valores ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
-
 def limpar_valor_monetario(valor):
     if isinstance(valor, str):
         valor = valor.replace('R$', '').replace('−', '-').replace('–', '-').replace('‐', '-')
         valor = valor.replace('- ', '-').replace(' ', '').replace('.', '').replace(',', '.').strip()
     return pd.to_numeric(valor, errors='coerce')
-
 for col in colunas_para_converter:
     df[col] = df[col].apply(limpar_valor_monetario)
 
-df['Status'] = df['Status'].fillna('').str.strip().str.lower()
-
-df_finalizadas = df[df['Status'].isin(['green', 'red', 'anulado'])].copy()
+# --- Status normalizado ---
+df['Status'] = df['Status'].astype(str).str.strip().str.lower()
+status_validos = ['green', 'red', 'anulado']
+df_finalizadas = df[df['Status'].isin(status_validos)].copy()
 
 # --- Cálculo por data ---
 df_consolidado = df_finalizadas.groupby('Data').agg({
@@ -60,17 +59,15 @@ df_consolidado = df_finalizadas.groupby('Data').agg({
     'Ganho (R$)': 'sum',
     'Lucro/Prejuízo (R$)': 'sum'
 }).reset_index()
-
 df_consolidado = df_consolidado.sort_values('Data')
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
 
+# --- Cálculos principais ---
 BANCA_INICIAL = 1250
+lucro_total = df_finalizadas['Lucro/Prejuízo (R$)'].sum()
 ultimo_lucro = df_consolidado['Lucro Acumulado'].iloc[-1] if not df_consolidado.empty else 0
 banca_atual = BANCA_INICIAL + ultimo_lucro
 variacao_banca = banca_atual - BANCA_INICIAL
-
-# --- TESTE: VERIFICAÇÃO DE LUCRO CALCULADO ---
-st.write("🧮 Lucro Total Calculado:", df_finalizadas['Lucro/Prejuízo (R$)'].sum())  # Deve dar 66.14
 
 # --- Métricas principais ---
 col1, col2, col3, col4, col5 = st.columns(5)
@@ -78,8 +75,29 @@ col1.metric("📅 Total de Apostas", f"{len(df)}")
 col2.metric("💰 Banca Inicial", f"R$ {BANCA_INICIAL:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 col3.metric("📊 Cotação Média", f"{df_finalizadas['Cotação'].mean():.1f}")
 col4.metric("🏦 Banca Atual", f"R$ {banca_atual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'), delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'), delta_color="inverse" if variacao_banca < 0 else "normal")
-col5.metric("📈 Lucro/Prejuízo Total", f"R$ {df_finalizadas['Lucro/Prejuízo (R$)'].sum():,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+col5.metric("📈 Lucro/Prejuízo Total", f"R$ {lucro_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
+# --- Estatísticas detalhadas ---
+with st.expander("📊 Estatísticas Detalhadas"):
+    total_apostas = len(df_finalizadas)
+    greens = (df_finalizadas['Status'] == 'green').sum()
+    reds = (df_finalizadas['Status'] == 'red').sum()
+    anuladas = (df_finalizadas['Status'] == 'anulado').sum()
+    green_pct = greens / total_apostas * 100 if total_apostas > 0 else 0
+    red_pct = reds / total_apostas * 100 if total_apostas > 0 else 0
+    anulado_pct = anuladas / total_apostas * 100 if total_apostas > 0 else 0
+    maior_lucro = df_finalizadas['Lucro/Prejuízo (R$)'].max()
+    maior_prejuizo = df_finalizadas['Lucro/Prejuízo (R$)'].min()
+    media_lucro = df_finalizadas['Lucro/Prejuízo (R$)'].mean()
+
+    st.markdown(f"**🎯 Total de Apostas Finalizadas:** {total_apostas}")
+    st.markdown(f"✅ **Greens:** {greens} ({green_pct:.1f}%)")
+    st.markdown(f"❌ **Reds:** {reds} ({red_pct:.1f}%)")
+    st.markdown(f"⚪ **Anuladas:** {anuladas} ({anulado_pct:.1f}%)")
+    st.markdown(f"📈 **Lucro Total:** R$ {lucro_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    st.markdown(f"💰 **Média por Aposta:** R$ {media_lucro:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    st.markdown(f"📈 **Maior Lucro:** R$ {maior_lucro:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    st.markdown(f"📉 **Maior Prejuízo:** R$ {maior_prejuizo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
 # --- Gráfico de lucro por data ---
 fig_lucro = go.Figure()
