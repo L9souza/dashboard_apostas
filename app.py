@@ -20,6 +20,8 @@ st.markdown("""
     .metric {text-align: center;}
     .stMetricValue {font-size: 18px !important;}
     .stMetricLabel {font-size: 14px !important;}
+    .negative-value {color: #FF0000 !important; font-weight: bold;}
+    .positive-value {color: #00AA00 !important; font-weight: bold;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -60,7 +62,7 @@ def carregar_dados():
         df = df.dropna(subset=["Status", "Valor apostado (R$)", "Data"], how='any')
         df['Status'] = df['Status'].astype(str).str.strip().str.lower()
         
-        # Conversão de datas com tratamento de erros
+        # Conversão de datas
         df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
         df = df.dropna(subset=["Data"])
         df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
@@ -69,11 +71,12 @@ def carregar_dados():
         for col in ['Cotação', 'Valor apostado (R$)']:
             df[col] = df[col].apply(limpar_valor_monetario)
         
-        # Cálculo de ganhos e lucro
+        # Cálculo de ganhos e lucro - CORREÇÃO APLICADA AQUI
         df['Ganho (R$)'] = df.apply(
             lambda row: row['Valor apostado (R$)'] * row['Cotação'] if row['Status'] == 'green'
             else row['Valor apostado (R$)'] if row['Status'] == 'anulado'
-            else 0, axis=1
+            else 0,  # RED tem ganho zero
+            axis=1
         )
         
         df['Lucro/Prejuízo (R$)'] = df['Ganho (R$)'] - df['Valor apostado (R$)']
@@ -192,28 +195,17 @@ with st.expander("📊 Estatísticas Detalhadas", expanded=False):
         st.metric("❌ Reds", f"{reds} ({red_pct:.1f}%)")
         st.metric("⚪ Anuladas", f"{anuladas} ({anulado_pct:.1f}%)")
 
-# Tabela de apostas
-df_display = df.copy().iloc[::-1].reset_index(drop=True)
-
-def colorir_numerico(val):
-    """Aplica estilo condicional a valores numéricos"""
-    try:
-        val = float(val)
-        if val > 0:
-            return 'color: #00AA00; font-weight: bold;'
-        elif val < 0:
-            return 'color: #FF0000; font-weight: bold;'
-        return ''
-    except:
-        return ''
+# Tabela de apostas - CORREÇÃO APLICADA AQUI
+colunas_ordenadas = ['Data', 'Valor apostado (R$)', 'Cotação', 'Status', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']
+df_display = df[colunas_ordenadas].copy().iloc[::-1].reset_index(drop=True)
 
 def colorir_status(val):
     """Aplica estilo condicional ao status"""
     val = str(val).strip().lower()
     if val == "green":
-        return 'background-color: #e6f7e6; color: #00AA00; font-weight: bold;'
+        return 'background-color: #e6f7e6; color: #006400; font-weight: bold;'
     elif val == "red":
-        return 'background-color: #ffebeb; color: #FF0000; font-weight: bold;'
+        return 'background-color: #ffebeb; color: #8B0000; font-weight: bold;'
     elif val == "anulado":
         return 'background-color: #f0f0f0; color: #666666;'
     return ''
@@ -224,7 +216,9 @@ styled_df = df_display.style.format({
     'Ganho (R$)': formatar_brl,
     'Lucro/Prejuízo (R$)': formatar_brl,
     'Cotação': "{:.2f}"
-}).applymap(colorir_numerico, subset=['Lucro/Prejuízo (R$)', 'Ganho (R$)']).applymap(colorir_status, subset=['Status'])
+}).applymap(lambda x: 'color: #00AA00; font-weight: bold;' if isinstance(x, (int, float)) and x > 0 else '', 
+            subset=['Lucro/Prejuízo (R$)']).applymap(lambda x: 'color: #FF0000; font-weight: bold;' if isinstance(x, (int, float)) and x < 0 else '', 
+            subset=['Lucro/Prejuízo (R$)']).applymap(colorir_status, subset=['Status'])
 
 # Exibir tabela
 st.dataframe(
