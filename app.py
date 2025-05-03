@@ -39,7 +39,7 @@ df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-for col in ['Cotacao', 'Valor apostado (R$)']:
+for col in ['Cotação', 'Valor apostado (R$)']:
     df[col] = pd.to_numeric(df[col].astype(str)
                             .str.replace('R$', '').str.replace('−', '-')
                             .str.replace('.', '', regex=False)
