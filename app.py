@@ -171,3 +171,9 @@ styled_df = styled_df.applymap(colorir_valor, subset=['Lucro/Prejuízo (R$)', 'G
 styled_df = styled_df.applymap(colorir_status, subset=['Status'])
 
 st.dataframe(styled_df, use_container_width=True, hide_index=True, height=450)
+
+df['Ordem'] = df.index + 1  # cria uma coluna com a ordem original (1, 2, 3…)
+
+
+df_display = df_display.sort_values('Ordem')
+
