@@ -31,26 +31,35 @@ if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
     st.rerun()
 
-# --- Carregar e tratar dados ---
 df = carregar_dados()
+
+# --- Tratamento de datas ---
 df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
-df = df.dropna(subset=['Data'])
+df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
-def limpar_valor_monetario(valor):
-    if isinstance(valor, str):
-        valor = valor.replace('R$', '').replace('−', '-').replace('–', '-').replace('‐', '-')
-        valor = valor.replace('- ', '-').replace(' ', '').replace('.', '').replace(',', '.').strip()
-    return pd.to_numeric(valor, errors='coerce')
+# --- Conversão de valores numéricos ---
+for col in ['Cotação', 'Valor apostado (R$)']:
+    df[col] = pd.to_numeric(
+        df[col].astype(str)
+        .str.replace('R$', '').str.replace('−', '-')
+        .str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
+        .str.strip(),
+        errors='coerce'
+    )
 
-for col in colunas_para_converter:
-    df[col] = df[col].apply(limpar_valor_monetario)
-
+# --- Status padronizado ---
 df['Status'] = df['Status'].astype(str).str.strip().str.lower()
+
+# --- Cálculo de Ganho e Lucro ---
+df['Ganho (R$)'] = df.apply(lambda row: row['Valor apostado (R$)'] * row['Cotação'] if row['Status'] == 'green'
+                            else row['Valor apostado (R$)'] if row['Status'] == 'anulado'
+                            else 0, axis=1)
+df['Lucro/Prejuízo (R$)'] = df['Ganho (R$)'] - df['Valor apostado (R$)']
+
+# --- Filtro de apostas finalizadas ---
 status_validos = ['green', 'red', 'anulado']
 df_finalizadas = df[df['Status'].isin(status_validos)].copy()
-df_finalizadas['Lucro/Prejuízo (R$)'] = pd.to_numeric(df_finalizadas['Lucro/Prejuízo (R$)'], errors='coerce').fillna(0)
 
 # --- Consolidado por data ---
 df_consolidado = df_finalizadas.groupby('Data').agg({
@@ -58,6 +67,7 @@ df_consolidado = df_finalizadas.groupby('Data').agg({
     'Ganho (R$)': 'sum',
     'Lucro/Prejuízo (R$)': 'sum'
 }).reset_index().sort_values('Data')
+
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
 
 # --- Métricas principais ---
@@ -71,7 +81,7 @@ col1.metric("📅 Total de Apostas", f"{len(df)}")
 col2.metric("💰 Banca Inicial", f"R$ {BANCA_INICIAL:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 col3.metric("📊 Cotação Média", f"{df_finalizadas['Cotação'].mean():.1f}")
 col4.metric("🏦 Banca Atual", f"R$ {banca_atual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'), delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'), delta_color="inverse" if variacao_banca < 0 else "normal")
-col5.metric("📈 Lucro Total", f"R$ {lucro_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+col5.metric("📈 Lucro/Prejuízo Total", f"R$ {lucro_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
 # --- Gráfico de lucro por data ---
 fig_lucro = go.Figure()
@@ -93,58 +103,70 @@ fig_lucro.update_layout(
 )
 st.plotly_chart(fig_lucro, use_container_width=True)
 
-# --- Estatísticas detalhadas ---
+# --- Estatísticas Detalhadas ---
 with st.expander("📊 Estatísticas Detalhadas"):
     total_apostas = len(df_finalizadas)
+    total_apostado = df_finalizadas['Valor apostado (R$)'].sum()
+    total_ganho = df_finalizadas['Ganho (R$)'].sum()
+    lucro_total = df_finalizadas['Lucro/Prejuízo (R$)'].sum()
+
     greens = (df_finalizadas['Status'] == 'green').sum()
     reds = (df_finalizadas['Status'] == 'red').sum()
     anuladas = (df_finalizadas['Status'] == 'anulado').sum()
+
     green_pct = greens / total_apostas * 100 if total_apostas > 0 else 0
     red_pct = reds / total_apostas * 100 if total_apostas > 0 else 0
     anulado_pct = anuladas / total_apostas * 100 if total_apostas > 0 else 0
+
     maior_lucro = df_finalizadas['Lucro/Prejuízo (R$)'].max()
     maior_prejuizo = df_finalizadas['Lucro/Prejuízo (R$)'].min()
     media_lucro = df_finalizadas['Lucro/Prejuízo (R$)'].mean()
 
     st.markdown(f"**🎯 Total de Apostas Finalizadas:** {total_apostas}")
-    st.markdown(f"✅ **Greens:** {greens} ({green_pct:.1f}%)")
-    st.markdown(f"❌ **Reds:** {reds} ({red_pct:.1f}%)")
-    st.markdown(f"⚪ **Anuladas:** {anuladas} ({anulado_pct:.1f}%)")
+    st.markdown(f"💸 **Total Apostado:** R$ {total_apostado:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    st.markdown(f"💰 **Total Recuperado:** R$ {total_ganho:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
     st.markdown(f"📈 **Lucro Total:** R$ {lucro_total:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
     st.markdown(f"💰 **Média por Aposta:** R$ {media_lucro:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
     st.markdown(f"📈 **Maior Lucro:** R$ {maior_lucro:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
     st.markdown(f"📉 **Maior Prejuízo:** R$ {maior_prejuizo:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+    st.markdown(f"✅ **Greens:** {greens} ({green_pct:.1f}%)")
+    st.markdown(f"❌ **Reds:** {reds} ({red_pct:.1f}%)")
+    st.markdown(f"⚪ **Anuladas:** {anuladas} ({anulado_pct:.1f}%)")
 
-# --- Estilização da tabela ---
-def formatar_moeda_condicional(valor, status):
-    if pd.isna(status) or status not in ['green', 'red', 'anulado']:
-        return '—'
-    if pd.isna(valor):
-        return '—'
-    return f"R$ {valor:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
-
+# --- Estilização Condicional ---
 def colorir_valor(val):
     if isinstance(val, str):
+        num_str = val.replace('R$', '').replace('RS', '').strip()
+        num_str = num_str.replace('.', '').replace(',', '.')
         try:
-            val = float(val.replace('R$', '').replace('.', '').replace(',', '.'))
-            if val > 0: return 'color: #00AA00; font-weight: bold;'
-            if val < 0: return 'color: #FF0000; font-weight: bold;'
-        except: return ''
+            valor = float(num_str)
+            if valor > 0:
+                return 'color: #00AA00; font-weight: bold;'
+            elif valor < 0:
+                return 'color: #FF0000; font-weight: bold;'
+            return 'color: white; font-weight: normal;'
+        except:
+            return ''
     return ''
 
 def colorir_status(val):
-    if val == "green": return 'color: #00AA00; font-weight: bold;'
-    if val == "red": return 'color: #FF0000; font-weight: bold;'
-    return 'color: white;'
+    if val == "green":
+        return 'color: #00AA00; font-weight: bold;'
+    elif val == "red":
+        return 'color: #FF0000; font-weight: bold;'
+    return 'color: white; font-weight: normal;'
 
+# --- Preparar DataFrame para exibição ---
 df_display = df.copy()
-df_display['Lucro/Prejuízo (R$)'] = df.apply(lambda row: formatar_moeda_condicional(row['Lucro/Prejuízo (R$)'], row['Status']), axis=1)
-df_display['Ganho (R$)'] = df.apply(lambda row: formatar_moeda_condicional(row['Ganho (R$)'], row['Status']), axis=1)
-df_display['Valor apostado (R$)'] = df_display['Valor apostado (R$)'].apply(lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
-df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
+for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
+    if col in df_display.columns:
+        df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
+if 'Cotação' in df_display.columns:
+    df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
 
 styled_df = df_display.style
 styled_df = styled_df.applymap(colorir_valor, subset=['Lucro/Prejuízo (R$)', 'Ganho (R$)'])
 styled_df = styled_df.applymap(colorir_status, subset=['Status'])
 
+# --- Exibição da Tabela ---
 st.dataframe(styled_df, use_container_width=True, hide_index=True, height=450)
