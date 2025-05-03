@@ -33,35 +33,31 @@ if st.button("🔄 Atualizar Dados"):
 
 df = carregar_dados()
 
-# --- Tratamento de datas ---
+# --- Datas ---
 df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-# --- Conversão segura ---
+# --- Conversão de colunas monetárias e numéricas ---
 for col in ['Cotação', 'Valor apostado (R$)']:
     df[col] = pd.to_numeric(
         df[col].astype(str)
         .str.replace('R$', '').str.replace('−', '-')
         .str.replace('.', '', regex=False).str.replace(',', '.', regex=False)
-        .str.strip(),
-        errors='coerce'
+        .str.strip(), errors='coerce'
     )
 
 df['Status'] = df['Status'].astype(str).str.strip().str.lower()
 
-# --- Novo cálculo: Ganho (R$) negativo no RED ---
+# --- Ganho e Lucro ajustados ---
 df['Ganho (R$)'] = df.apply(lambda row:
     row['Valor apostado (R$)'] * row['Cotação'] if row['Status'] == 'green'
     else row['Valor apostado (R$)'] if row['Status'] == 'anulado'
-    else -row['Valor apostado (R$)'], axis=1)
+    else 0, axis=1)
 
-# --- Novo cálculo: Lucro depende do ganho já tratado ---
-df['Lucro/Prejuízo (R$)'] = df.apply(lambda row:
-    row['Ganho (R$)'] - row['Valor apostado (R$)'] if row['Status'] != 'red'
-    else row['Ganho (R$)'], axis=1)
+df['Lucro/Prejuízo (R$)'] = df['Ganho (R$)'] - df['Valor apostado (R$)']
 
-# --- Filtro finalizadas ---
+# --- Filtro de finalizadas ---
 status_validos = ['green', 'red', 'anulado']
 df_finalizadas = df[df['Status'].isin(status_validos)].copy()
 
@@ -73,7 +69,7 @@ df_consolidado = df_finalizadas.groupby('Data').agg({
 }).reset_index().sort_values('Data')
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
 
-# --- Métricas principais ---
+# --- Métricas ---
 BANCA_INICIAL = 1250
 lucro_total = df_finalizadas['Lucro/Prejuízo (R$)'].sum()
 banca_atual = BANCA_INICIAL + lucro_total
@@ -135,7 +131,7 @@ with st.expander("📊 Estatísticas Detalhadas"):
     st.markdown(f"❌ **Reds:** {reds} ({red_pct:.1f}%)")
     st.markdown(f"⚪ **Anuladas:** {anuladas} ({anulado_pct:.1f}%)")
 
-# --- Estilização condicional ---
+# --- Estilização ---
 def colorir_valor(val):
     if isinstance(val, str):
         num_str = val.replace('R$', '').replace('RS', '').strip()
@@ -158,7 +154,7 @@ def colorir_status(val):
         return 'color: #FF0000; font-weight: bold;'
     return 'color: white; font-weight: normal;'
 
-# --- Preparar e formatar tabela final ---
+# --- Exibição invertida da tabela ---
 df_display = df.copy()
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
@@ -166,14 +162,12 @@ for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
 if 'Cotação' in df_display.columns:
     df_display['Cotação'] = df_display['Cotação'].apply(lambda x: f"{x:.2f}")
 
+# ✅ INVERTER ORDEM: aposta mais recente em cima
+df_display = df_display.iloc[::-1].reset_index(drop=True)
+
 styled_df = df_display.style
 styled_df = styled_df.applymap(colorir_valor, subset=['Lucro/Prejuízo (R$)', 'Ganho (R$)'])
 styled_df = styled_df.applymap(colorir_status, subset=['Status'])
 
+# --- Exibição final ---
 st.dataframe(styled_df, use_container_width=True, hide_index=True, height=450)
-
-df['Ordem'] = df.index + 1  # cria uma coluna com a ordem original (1, 2, 3…)
-
-
-df_display = df_display.sort_values('Ordem')
-
