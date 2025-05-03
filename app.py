@@ -38,7 +38,7 @@ df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
-# --- Conversão de valores numéricos ---
+# --- Conversão segura ---
 for col in ['Cotação', 'Valor apostado (R$)']:
     df[col] = pd.to_numeric(
         df[col].astype(str)
@@ -48,16 +48,20 @@ for col in ['Cotação', 'Valor apostado (R$)']:
         errors='coerce'
     )
 
-# --- Status padronizado ---
 df['Status'] = df['Status'].astype(str).str.strip().str.lower()
 
-# --- Cálculo de Ganho e Lucro ---
-df['Ganho (R$)'] = df.apply(lambda row: row['Valor apostado (R$)'] * row['Cotação'] if row['Status'] == 'green'
-                            else row['Valor apostado (R$)'] if row['Status'] == 'anulado'
-                            else 0, axis=1)
-df['Lucro/Prejuízo (R$)'] = df['Ganho (R$)'] - df['Valor apostado (R$)']
+# --- Novo cálculo: Ganho (R$) negativo no RED ---
+df['Ganho (R$)'] = df.apply(lambda row:
+    row['Valor apostado (R$)'] * row['Cotação'] if row['Status'] == 'green'
+    else row['Valor apostado (R$)'] if row['Status'] == 'anulado'
+    else -row['Valor apostado (R$)'], axis=1)
 
-# --- Filtro de apostas finalizadas ---
+# --- Novo cálculo: Lucro depende do ganho já tratado ---
+df['Lucro/Prejuízo (R$)'] = df.apply(lambda row:
+    row['Ganho (R$)'] - row['Valor apostado (R$)'] if row['Status'] != 'red'
+    else row['Ganho (R$)'], axis=1)
+
+# --- Filtro finalizadas ---
 status_validos = ['green', 'red', 'anulado']
 df_finalizadas = df[df['Status'].isin(status_validos)].copy()
 
@@ -67,7 +71,6 @@ df_consolidado = df_finalizadas.groupby('Data').agg({
     'Ganho (R$)': 'sum',
     'Lucro/Prejuízo (R$)': 'sum'
 }).reset_index().sort_values('Data')
-
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
 
 # --- Métricas principais ---
@@ -108,7 +111,6 @@ with st.expander("📊 Estatísticas Detalhadas"):
     total_apostas = len(df_finalizadas)
     total_apostado = df_finalizadas['Valor apostado (R$)'].sum()
     total_ganho = df_finalizadas['Ganho (R$)'].sum()
-    lucro_total = df_finalizadas['Lucro/Prejuízo (R$)'].sum()
 
     greens = (df_finalizadas['Status'] == 'green').sum()
     reds = (df_finalizadas['Status'] == 'red').sum()
@@ -133,7 +135,7 @@ with st.expander("📊 Estatísticas Detalhadas"):
     st.markdown(f"❌ **Reds:** {reds} ({red_pct:.1f}%)")
     st.markdown(f"⚪ **Anuladas:** {anuladas} ({anulado_pct:.1f}%)")
 
-# --- Estilização Condicional ---
+# --- Estilização condicional ---
 def colorir_valor(val):
     if isinstance(val, str):
         num_str = val.replace('R$', '').replace('RS', '').strip()
@@ -156,7 +158,7 @@ def colorir_status(val):
         return 'color: #FF0000; font-weight: bold;'
     return 'color: white; font-weight: normal;'
 
-# --- Preparar DataFrame para exibição ---
+# --- Preparar e formatar tabela final ---
 df_display = df.copy()
 for col in ['Valor apostado (R$)', 'Ganho (R$)', 'Lucro/Prejuízo (R$)']:
     if col in df_display.columns:
@@ -168,5 +170,4 @@ styled_df = df_display.style
 styled_df = styled_df.applymap(colorir_valor, subset=['Lucro/Prejuízo (R$)', 'Ganho (R$)'])
 styled_df = styled_df.applymap(colorir_status, subset=['Status'])
 
-# --- Exibição da Tabela ---
 st.dataframe(styled_df, use_container_width=True, hide_index=True, height=450)
