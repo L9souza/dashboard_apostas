@@ -31,7 +31,6 @@ if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
     st.rerun()
 
-# Fora do if, sempre define df
 df = carregar_dados()
 
 # --- Tratamento de colunas e datas ---
@@ -39,22 +38,23 @@ df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%y', errors='coerce')
 df = df.dropna(subset=["Data"])
 df['Data'] = df['Data'].dt.strftime('%d/%m/%Y')
 
+# --- NOVA CONVERSÃO MAIS ROBUSTA ---
 colunas_para_converter = ['Cotação', 'Valor apostado (R$)', 'Lucro/Prejuízo (R$)', 'Ganho (R$)']
+
+def limpar_valor_monetario(valor):
+    if isinstance(valor, str):
+        valor = valor.replace('R$', '').replace('−', '-').replace('–', '-').replace('‐', '-')
+        valor = valor.replace('- ', '-').replace(' ', '').replace('.', '').replace(',', '.').strip()
+    return pd.to_numeric(valor, errors='coerce')
+
 for col in colunas_para_converter:
-    df[col] = (df[col].astype(str)
-        .str.replace('R\$', '', regex=True)
-        .str.replace(r'[−–‐]', '-', regex=True)
-        .str.replace('- ', '-', regex=False)
-        .str.replace(' ', '', regex=False)
-        .str.replace('.', '', regex=False)
-        .str.replace(',', '.', regex=False)
-        .str.strip())
-    df[col] = pd.to_numeric(df[col], errors='coerce')
+    df[col] = df[col].apply(limpar_valor_monetario)
 
 df['Status'] = df['Status'].fillna('').str.strip().str.lower()
-df_finalizadas = df[df['Status'].isin(['green', 'red', 'anulado'])].copy()
+
 df_finalizadas = df[df['Status'].isin(['green', 'red', 'anulado'])].copy()
 
+# --- Cálculo por data ---
 df_consolidado = df_finalizadas.groupby('Data').agg({
     'Valor apostado (R$)': 'sum',
     'Ganho (R$)': 'sum',
@@ -69,6 +69,9 @@ ultimo_lucro = df_consolidado['Lucro Acumulado'].iloc[-1] if not df_consolidado.
 banca_atual = BANCA_INICIAL + ultimo_lucro
 variacao_banca = banca_atual - BANCA_INICIAL
 
+# --- TESTE: VERIFICAÇÃO DE LUCRO CALCULADO ---
+st.write("🧮 Lucro Total Calculado:", df_finalizadas['Lucro/Prejuízo (R$)'].sum())  # Deve dar 66.14
+
 # --- Métricas principais ---
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("📅 Total de Apostas", f"{len(df)}")
@@ -77,7 +80,6 @@ col3.metric("📊 Cotação Média", f"{df_finalizadas['Cotação'].mean():.1f}"
 col4.metric("🏦 Banca Atual", f"R$ {banca_atual:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'), delta=f"R$ {variacao_banca:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'), delta_color="inverse" if variacao_banca < 0 else "normal")
 col5.metric("📈 Lucro/Prejuízo Total", f"R$ {df_finalizadas['Lucro/Prejuízo (R$)'].sum():,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.'))
 
-st.markdown("---")
 
 # --- Gráfico de lucro por data ---
 fig_lucro = go.Figure()
