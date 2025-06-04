@@ -71,7 +71,7 @@ df_consolidado = df_finalizadas.groupby('Data').agg({
 }).reset_index().sort_values('Data')
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
 
-BANCA_INICIAL = 1000
+BANCA_INICIAL = 2500
 lucro_total = df_finalizadas['Lucro/Prejuízo (R$)'].sum()
 banca_atual = BANCA_INICIAL + lucro_total
 variacao_banca = banca_atual - BANCA_INICIAL
