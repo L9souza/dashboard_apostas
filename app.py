@@ -1,9 +1,14 @@
+Com certeza! Aqui está o código completo do arquivo `app.py` com a alteração incluída para remover as colunas indesejadas.
+
+```python
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
+# Configurações da página
 st.set_page_config(page_title="Dashboard de Apostas", page_icon="🎯", layout="wide", initial_sidebar_state="collapsed")
 
+# CSS para ocultar o índice da tabela
 st.markdown("""
     <style>
     thead tr th:first-child {display:none}
@@ -13,12 +18,14 @@ st.markdown("""
 
 st.title('🎯 Dashboard de Apostas Esportivas')
 
+# Função para formatar valores para o padrão BRL (R$)
 def formatar_brl(valor):
     try:
         return f"R$ {float(valor):,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
     except:
         return "R$ 0,00"
 
+# Função para carregar os dados da planilha (com cache para performance)
 @st.cache_data
 def carregar_dados():
     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT_r9CxtMoWnWEkzzYwHAekTItzRrXjFvirDMNlokjlF82QzA8srPgDADnwRLef8WXh9XtFaIbwjRWE/pub?output=csv"
@@ -30,11 +37,24 @@ def carregar_dados():
         st.error(f"Erro ao carregar os dados: {e}")
         return pd.DataFrame()
 
+# Botão para forçar a atualização dos dados
 if st.button("🔄 Atualizar Dados"):
     st.cache_data.clear()
     st.rerun()
 
 df = carregar_dados()
+
+# --- CÓDIGO ADICIONADO ---
+# Filtra o DataFrame para manter apenas as colunas necessárias,
+# ignorando as colunas K, L, M e outras que não serão usadas.
+colunas_para_manter = [
+    '#', 'Data', 'Jogador / Evento', 'Casa de Aposta', 'Mercado', 'Cotação',
+    'Valor apostado (R$)', 'Status'
+]
+df = df[colunas_para_manter]
+# --- FIM DO CÓDIGO ADICIONADO ---
+
+# Limpeza e preparação dos dados
 df = df.dropna(subset=["Status", "Valor apostado (R$)", "Data"])
 df['Status'] = df['Status'].astype(str).str.strip().str.lower()
 
@@ -48,7 +68,7 @@ for col in ['Cotação', 'Valor apostado (R$)']:
                             .str.replace('.', '', regex=False)
                             .str.replace(',', '.', regex=False).str.strip(), errors='coerce')
 
-# ✅ AQUI ESTÁ A LÓGICA FINAL
+# Cálculos de Ganho e Lucro/Prejuízo
 df['Ganho (R$)'] = df.apply(lambda row:
     row['Valor apostado (R$)'] * row['Cotação'] if row['Status'] == 'green'
     else -row['Valor apostado (R$)'] if row['Status'] == 'red'
@@ -61,9 +81,11 @@ df['Lucro/Prejuízo (R$)'] = df.apply(lambda row:
     else 0 if row['Status'] == 'anulado'
     else 0, axis=1)
 
+# Filtrando apenas apostas com status válidos
 status_validos = ['green', 'red', 'anulado']
 df_finalizadas = df[df['Status'].isin(status_validos)].copy()
 
+# Consolidação dos dados por data
 df_consolidado = df_finalizadas.groupby('Data').agg({
     'Valor apostado (R$)': 'sum',
     'Ganho (R$)': 'sum',
@@ -71,6 +93,7 @@ df_consolidado = df_finalizadas.groupby('Data').agg({
 }).reset_index().sort_values('Data')
 df_consolidado['Lucro Acumulado'] = df_consolidado['Lucro/Prejuízo (R$)'].cumsum()
 
+# Métricas principais
 BANCA_INICIAL = 2500
 lucro_total = df_finalizadas['Lucro/Prejuízo (R$)'].sum()
 banca_atual = BANCA_INICIAL + lucro_total
@@ -85,6 +108,7 @@ col4.metric("🏦 Banca Atual", formatar_brl(banca_atual),
              delta_color="inverse" if variacao_banca < 0 else "normal")
 col5.metric("📈 Lucro/Prejuízo Total", formatar_brl(lucro_total))
 
+# Gráfico de Lucro/Prejuízo por Data
 fig_lucro = go.Figure()
 fig_lucro.add_trace(go.Bar(
     x=df_consolidado['Data'],
@@ -98,6 +122,7 @@ fig_lucro.update_layout(title="Lucro/Prejuízo por Data", xaxis_title='Data', ya
                         height=500, plot_bgcolor='rgba(0,0,0,0)', hovermode="x unified")
 st.plotly_chart(fig_lucro, use_container_width=True)
 
+# Expander com estatísticas detalhadas
 with st.expander("📊 Estatísticas Detalhadas"):
     total_apostas = len(df_finalizadas)
     total_apostado = df_finalizadas['Valor apostado (R$)'].sum()
@@ -123,9 +148,11 @@ with st.expander("📊 Estatísticas Detalhadas"):
     st.markdown(f"❌ **Reds:** {reds} ({red_pct:.1f}%)")
     st.markdown(f"⚪ **Anuladas:** {anuladas} ({anulado_pct:.1f}%)")
 
+# Preparação do DataFrame para exibição
 df_display = df.copy().iloc[::-1].reset_index(drop=True)
 df_display['Status'] = df_display['Status'].str.upper()
 
+# Função para aplicar estilo de cores na tabela
 def estilo_linha(row):
     estilo = []
     for col in df_display.columns:
@@ -151,6 +178,7 @@ def estilo_linha(row):
             estilo.append('')
     return estilo
 
+# Formatação e estilo do DataFrame final
 styled_df = df_display.style.format({
     'Valor apostado (R$)': formatar_brl,
     'Ganho (R$)': formatar_brl,
@@ -158,4 +186,6 @@ styled_df = df_display.style.format({
     'Cotação': '{:.2f}'
 }).apply(estilo_linha, axis=1)
 
+# Exibição da tabela de apostas
 st.dataframe(styled_df, use_container_width=True, hide_index=True, height=500)
+```
