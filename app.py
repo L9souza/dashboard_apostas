@@ -1,6 +1,3 @@
-Com certeza! Aqui está o código completo do arquivo `app.py` com a alteração incluída para remover as colunas indesejadas.
-
-```python
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -188,4 +185,3 @@ styled_df = df_display.style.format({
 
 # Exibição da tabela de apostas
 st.dataframe(styled_df, use_container_width=True, hide_index=True, height=500)
-```
