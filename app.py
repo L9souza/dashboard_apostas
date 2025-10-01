@@ -38,14 +38,22 @@ mapeamento_nomes = {
 
 @st.cache_data
 def carregar_dados(url):
-    """Carrega dados da URL da planilha com cache para performance."""
+    """Carrega dados da URL da planilha com cache para performance e trata anuladas sem cotação."""
     try:
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
         
+        # 1. Limpeza inicial do Status e padronização para minúsculas
+        df['Status'] = df['Status'].astype(str).str.strip().str.lower()
+        
+        # 2. CORREÇÃO: Trata apostas anuladas com Cotação vazia preenchendo com 1,00
+        # Isso impede que a linha seja descartada na conversão numérica ou no droplá
+        df.loc[(df['Status'] == 'anulado') & (df['Cotação'].isna()), 'Cotação'] = '1,00'
+
+        # Tentativa de converter a coluna Data, ignorando erros
         df['Data'] = pd.to_datetime(df['Data'], format='%d/%m/%Y', errors='coerce')
         
-        # Limpeza e conversão de colunas numéricas
+        # 3. Limpeza e conversão de colunas numéricas
         cols_numericas = ['Cotação', 'Valor apostado (R$)']
         for col in cols_numericas:
              # Remove R$, ponto de milhar e troca vírgula por ponto decimal
@@ -60,9 +68,9 @@ def carregar_dados(url):
         df['Jogador / Evento'] = df['Jogador / Evento'].astype(str).str.strip().str.lower().map(lambda x: mapeamento_nomes.get(x, x))
         df['Casa de Aposta'] = df['Casa de Aposta'].astype(str).str.strip() 
 
-        # Limpeza final de dados
-        df = df.dropna(subset=['Data', "Status", "Valor apostado (R$)"])
-        df['Status'] = df['Status'].astype(str).str.strip().str.lower()
+        # 4. Limpeza final de dados: Descarta se faltar Data ou Valor Apostado, 
+        # Cotação e Status já foram tratados.
+        df = df.dropna(subset=['Data', "Valor apostado (R$)"])
         
         return df
     except Exception as e:
@@ -80,19 +88,12 @@ if df.empty:
     st.warning("Não foi possível carregar os dados. Verifique a URL da planilha e a permissão de acesso.")
     st.stop()
 
-# --- Processamento e Limpeza dos Dados ---
-df = df.dropna(subset=["Status", "Valor apostado (R$)"])
-df['Status'] = df['Status'].astype(str).str.strip().str.lower()
-df = df.dropna(subset=["Data"])
-
-# ======================================================================================
 # --- Bloco de CÁLCULO REVISADO ---
-# ======================================================================================
 
 df['Ganho (R$)'] = df.apply(lambda row:
     # GREEN: Valor Apostado * Cotação (Ganho Bruto/Retorno Total)
     row['Valor apostado (R$)'] * row['Cotação'] if row['Status'] == 'green'
-    # RED: O valor recuperado é 0
+    # RED: O valor recuperado é 0 (prejuízo total)
     else 0 if row['Status'] == 'red' 
     # ANULADO: O valor recuperado é o valor apostado
     else row['Valor apostado (R$)'] if row['Status'] == 'anulado'
@@ -112,10 +113,6 @@ df['Lucro/Prejuízo (R$)'] = df.apply(lambda row:
 # Filtrando apenas apostas com status válidos (finalizadas)
 status_validos = ['green', 'red', 'anulado']
 df_finalizadas = df[df['Status'].isin(status_validos)].copy()
-
-# ======================================================================================
-# --- FIM DO BLOCO DE CÁLCULO REVISADO ---
-# ======================================================================================
 
 # --- Métricas Principais ---
 total_apostas = len(df_finalizadas)
@@ -175,7 +172,7 @@ st.plotly_chart(fig_lucro, use_container_width=True)
 with st.expander("📊 Estatísticas Detalhadas"):
     total_apostas_finalizadas = len(df_finalizadas)
     total_apostado = df_finalizadas['Valor apostado (R$)'].sum()
-    total_ganho = df_finalizadas['Ganho (R$)'].sum() # Soma do Ganho (Bruto em Greens, 0 em Reds, Apostado em Anuladas)
+    total_ganho = df_finalizadas['Ganho (R$)'].sum() 
     
     greens = (df_finalizadas['Status'] == 'green').sum()
     reds = (df_finalizadas['Status'] == 'red').sum()
