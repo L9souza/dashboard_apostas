@@ -208,10 +208,9 @@ col3.metric("📊 Cotação Média", f"{cotacao_media:.2f}" if not np.isnan(cota
 col4.metric(
     "🏦 Banca Atual",
     formatar_brl(banca_atual),
-    delta=formatar_brl(variacao_banca),  # << AGORA VAI EM R$
-    delta_color="normal"
+    delta=f"R$ {variacao_banca:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+    delta_color="inverse"   # FORÇA NEGATIVO = VERMELHO
 )
-
 col5.metric("📈 Lucro/Prejuízo Total", formatar_brl(lucro_total))
 col6.metric("🎯 ROI", f"{roi:.1f}%")
 st.markdown("---")
