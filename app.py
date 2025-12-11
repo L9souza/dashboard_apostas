@@ -205,14 +205,21 @@ col1, col2, col3, col4, col5, col6 = st.columns(6)
 col1.metric("📅 Total de Apostas", f"{total_apostas}")
 col2.metric("💰 Banca Inicial", formatar_brl(BANCA_INICIAL))
 col3.metric("📊 Cotação Média", f"{cotacao_media:.2f}" if not np.isnan(cotacao_media) else "-")
-delta_text = f"🔻 R$ {variacao_banca:,.2f}" if variacao_banca < 0 else f"🔺 R$ {variacao_banca:,.2f}"
+# Formatar delta com BRL e seta para baixo
+if variacao_banca < 0:
+    delta_text = f"🔻 R$ {abs(variacao_banca):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    delta_color = "inverse"
+else:
+    delta_text = f"🔺 R$ {variacao_banca:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    delta_color = "normal"
 
 col4.metric(
     "🏦 Banca Atual",
     formatar_brl(banca_atual),
-    delta_text,
-    delta_color="inverse"
+    delta=delta_text,
+    delta_color=delta_color
 )
+
 
 col5.metric("📈 Lucro/Prejuízo Total", formatar_brl(lucro_total))
 col6.metric("🎯 ROI", f"{roi:.1f}%")
