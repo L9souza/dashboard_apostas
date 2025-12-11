@@ -205,7 +205,13 @@ col1, col2, col3, col4, col5, col6 = st.columns(6)
 col1.metric("📅 Total de Apostas", f"{total_apostas}")
 col2.metric("💰 Banca Inicial", formatar_brl(BANCA_INICIAL))
 col3.metric("📊 Cotação Média", f"{cotacao_media:.2f}" if not np.isnan(cotacao_media) else "-")
-col4.metric("🏦 Banca Atual", formatar_brl(banca_atual), delta=delta_banca, delta_color="normal")
+col4.metric(
+    "🏦 Banca Atual",
+    formatar_brl(banca_atual),
+    delta=formatar_brl(variacao_banca),  # << AGORA VAI EM R$
+    delta_color="normal"
+)
+
 col5.metric("📈 Lucro/Prejuízo Total", formatar_brl(lucro_total))
 col6.metric("🎯 ROI", f"{roi:.1f}%")
 st.markdown("---")
